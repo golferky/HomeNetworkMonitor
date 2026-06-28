@@ -1,8 +1,11 @@
 import { RingApi } from 'ring-client-api'
 import nodemailer from 'nodemailer'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 
-const WATCHER_VERSION = '2026.06.21.2'
+const execAsync = promisify(exec)
+const WATCHER_VERSION = '2026.06.28.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -388,14 +391,56 @@ function updateTimeline(items) {
   return events
 }
 
-function formatEvent(event) {
-  const time = new Date(event.at).toLocaleString()
-  const base = `${time} ${event.source} ${event.name}: ${event.previousState} -> ${event.state}`
-  if (!event.likelyCause) return base
+function friendlyName(source, name) {
+  // Avoid "Govee Govee Smart LED desk" when name already starts with source name
+  const sourceLower = source.toLowerCase()
+  const nameLower = name.toLowerCase()
+  return nameLower.startsWith(sourceLower) ? name : `${source} ${name}`
+}
 
-  const causeTime = new Date(event.likelyCause.at)
-  const seconds = Math.max(0, Math.round((new Date(event.at).getTime() - causeTime.getTime()) / 1000))
-  return `${base}; likely caused by ${event.likelyCause.source} ${event.likelyCause.name} ${seconds}s earlier`
+function formatEvent(event) {
+  const time = new Date(event.at).toLocaleString('en-US', {
+    month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+    hour12: true,
+  })
+
+  const displayName = friendlyName(event.source, event.name)
+
+  let action
+  if (event.category === 'Light') {
+    action = event.state === 'on' ? 'turned on' : 'turned off'
+  } else {
+    if (event.state === 'active') {
+      action = event.name.toLowerCase().includes('motion') ? 'detected motion' : 'was opened'
+    } else {
+      action = event.name.toLowerCase().includes('motion') ? 'motion cleared' : 'was closed'
+    }
+  }
+
+  let msg = `${displayName} ${action} at ${time}`
+
+  if (event.likelyCause) {
+    const causeTime = new Date(event.likelyCause.at)
+    const seconds = Math.max(0, Math.round((new Date(event.at).getTime() - causeTime.getTime()) / 1000))
+    const causeName = friendlyName(event.likelyCause.source, event.likelyCause.name)
+    msg += `\n  -> likely triggered by ${causeName} ${seconds}s earlier`
+  }
+
+  return msg
+}
+
+async function sendIMessage(target, message) {
+  const escaped = message
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+  const script = `tell application "Messages"
+    set targetService to 1st service whose service type = iMessage
+    set targetBuddy to buddy "${target}" of targetService
+    send "${escaped}" to targetBuddy
+  end tell`
+  await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`)
 }
 
 async function sendEventAlert(events) {
@@ -407,8 +452,28 @@ async function sendEventAlert(events) {
     return
   }
 
+  const title = important.length === 1
+    ? `Home Alert: ${friendlyName(important[0].source, important[0].name)}`
+    : `Home Alert: ${important.length} events`
+
+  const body = important.map(formatEvent).join('\n')
+  const message = `${title}\n${body}`
+
+  // Try iMessage first
+  const IMESSAGE_TARGET = process.env.IMESSAGE_TARGET
+  if (IMESSAGE_TARGET) {
+    try {
+      await sendIMessage(IMESSAGE_TARGET, message)
+      console.log(`iMessage sent to ${IMESSAGE_TARGET}`)
+      return
+    } catch (err) {
+      console.warn(`iMessage failed: ${err.message} — falling back to SMS`)
+    }
+  }
+
+  // Fallback: Gmail SMTP to T-Mobile SMS gateway
   if (!GMAIL_USER || !GMAIL_PASS) {
-    console.log('Text alert skipped: set GMAIL_USER and GMAIL_PASS to enable SMTP alerts.')
+    console.log('Alert skipped: set IMESSAGE_TARGET in .env, or GMAIL_USER+GMAIL_PASS for SMS fallback.')
     return
   }
 
@@ -420,11 +485,11 @@ async function sendEventAlert(events) {
   await transporter.sendMail({
     from: GMAIL_USER,
     to: SMS_TO,
-    subject: '',
-    text: `Home Event Alert!\n\n${important.map(formatEvent).join('\n')}`,
+    subject: title,
+    text: message,
   })
 
-  console.log(`Text alert sent to ${SMS_TO}`)
+  console.log(`SMS fallback sent to ${SMS_TO}`)
 }
 
 async function poll(ringApi) {
