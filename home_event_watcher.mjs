@@ -18,7 +18,7 @@ const GOVEE_TIMEOUT_SECONDS = parseInt(process.env.HOME_GOVEE_TIMEOUT_SECONDS ??
 const HUE_TIMEOUT_SECONDS = parseInt(process.env.HOME_HUE_TIMEOUT_SECONDS ?? '15', 10)
 const SEND_ALERTS = !process.argv.includes('--no-alert') && process.env.HOME_EVENT_ALERTS !== '0'
 const RUN_ONCE = process.argv.includes('--once')
-const IGNORED_LIGHT_STATE_KEYS = new Set(['ring:light:office'])
+const IGNORED_LIGHT_STATE_KEYS = new Set()
 
 function loadAlertEnv() {
   for (const file of ALERT_ENV_FILES) {
