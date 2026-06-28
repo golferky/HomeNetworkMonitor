@@ -1,0 +1,11 @@
+# Secrets & tokens
+ring_battery_alert.env
+.env
+ring_token.json
+
+# History/state files
+home_event_history.json
+
+# Node
+node_modules/
+*.log
