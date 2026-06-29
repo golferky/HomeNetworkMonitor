@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.4'
+const WATCHER_VERSION = '2026.06.29.5'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -415,6 +415,42 @@ async function collectSmartThingsEvents() {
   return items
 }
 
+// ─── Network Presence Monitor ───────────────────────────────────────────────
+
+import { readFileSync as _readFileSync } from 'fs'
+
+function loadDeviceRegistry() {
+  try {
+    const p = new URL('devices.json', import.meta.url).pathname
+    return JSON.parse(readFileSync(p, 'utf-8')).devices ?? []
+  } catch { return [] }
+}
+
+async function pingDevice(ip) {
+  try {
+    const { stdout } = await execAsync(`ping -c 1 -W 1 ${ip}`, { timeout: 3000 })
+    return stdout.includes('1 packets received') || stdout.includes('1 received')
+  } catch { return false }
+}
+
+async function collectPresenceEvents() {
+  const devices = loadDeviceRegistry().filter(d => d.notify)
+  if (devices.length === 0) return []
+
+  const items = []
+  for (const device of devices) {
+    const online = await pingDevice(device.ip)
+    items.push({
+      key: `presence:${device.mac}`.toLowerCase(),
+      source: 'Network',
+      category: 'Sensor',
+      name: device.name,
+      state: online ? 'active' : 'clear',
+    })
+  }
+  return items
+}
+
 // Cache discovered LG TV IPs across polls
 const lgTvCache = new Map()  // ip -> { name, ip }
 
@@ -507,7 +543,7 @@ async function collectLgTvEvents() {
 
 async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
-  const [ringItems, goveeItems, hueItems, stItems, lgItems] = await Promise.all([
+  const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
       console.log(`Ring skipped: ${err.message}`)
       return []
@@ -528,9 +564,13 @@ async function collectAllItems(ringApi) {
       console.log(`LG TV skipped: ${err.message}`)
       return []
     }),
+    withTimeout(collectPresenceEvents(), 60000, 'Presence collection').catch(err => {
+      console.log(`Presence skipped: ${err.message}`)
+      return []
+    }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -633,6 +673,8 @@ function formatEvent(event) {
   let action
   if (event.category === 'Light') {
     action = event.state === 'on' ? 'turned on' : 'turned off'
+  } else if (event.source === 'Network') {
+    action = event.state === 'active' ? 'came online' : 'went offline'
   } else {
     if (event.state === 'active') {
       action = event.name.toLowerCase().includes('motion') ? 'detected motion' : 'was opened'
