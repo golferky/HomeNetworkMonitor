@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.5'
+const WATCHER_VERSION = '2026.06.29.6'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -383,14 +383,15 @@ async function collectSmartThingsEvents() {
 
     if (isRange) {
       const ovenMode = main?.ovenOperatingState?.machineState?.value
-      const state = ovenMode && ovenMode !== 'ready' ? 'on' : 'off'
+      // Only treat as 'on' if we have a definitive active state
+      const activeStates = ['running', 'heating', 'preheating', 'delayed start', 'oven on']
+      const state = ovenMode && activeStates.some(s => ovenMode.toLowerCase().includes(s)) ? 'on' : 'off'
       items.push({
         key: `smartthings:range:${device.deviceId}`.toLowerCase(),
         source: 'SmartThings',
-        category: 'Light',  // treated as power device so alerts fire
+        category: 'Light',
         name: device.label ?? 'Range',
         state,
-        rangeOnSince: state === 'on' ? new Date().toISOString() : null,
       })
     }
 
