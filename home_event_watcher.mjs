@@ -5,7 +5,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.28.1'
+const WATCHER_VERSION = '2026.06.29.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -49,6 +49,9 @@ const SMS_TO = process.env.HOME_EVENT_SMS_TO ?? process.env.RING_BATTERY_SMS_TO 
 const GOVEE_API_KEY = process.env.GOVEE_API_KEY
 const HUE_BRIDGE_IP = process.env.HUE_BRIDGE_IP
 const HUE_USERNAME = process.env.HUE_USERNAME ?? process.env.HUE_API_KEY
+const SMARTTHINGS_TOKEN = process.env.SMARTTHINGS_TOKEN
+const ST_TIMEOUT_SECONDS = parseInt(process.env.HOME_ST_TIMEOUT_SECONDS ?? '20', 10)
+const RANGE_ALERT_MINUTES = parseInt(process.env.HOME_RANGE_ALERT_MINUTES ?? '60', 10)
 
 async function loadToken() {
   const data = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
@@ -291,8 +294,70 @@ async function collectHueEvents() {
   return items
 }
 
+async function collectSmartThingsEvents() {
+  if (!SMARTTHINGS_TOKEN) return []
+
+  const response = await fetch('https://api.smartthings.com/v1/devices', {
+    headers: { 'Authorization': `Bearer ${SMARTTHINGS_TOKEN}` }
+  })
+  const data = await response.json()
+  const devices = data.items || []
+  const items = []
+
+  for (const device of devices) {
+    const category = (device.components?.[0]?.categories?.[0]?.name || '').toLowerCase()
+
+    // Only track thermostat and range/oven
+    const isThermo = category.includes('thermostat')
+    const isRange  = category.includes('range') || category.includes('oven') ||
+                     device.label?.toLowerCase().includes('range') ||
+                     device.label?.toLowerCase().includes('oven')
+    if (!isThermo && !isRange) continue
+
+    // Fetch device status
+    const statusResp = await fetch(
+      `https://api.smartthings.com/v1/devices/${device.deviceId}/status`,
+      { headers: { 'Authorization': `Bearer ${SMARTTHINGS_TOKEN}` } }
+    )
+    const statusData = await statusResp.json()
+    const main = statusData?.components?.main
+
+    if (isRange) {
+      const ovenMode = main?.ovenOperatingState?.machineState?.value
+      const state = ovenMode && ovenMode !== 'ready' ? 'on' : 'off'
+      items.push({
+        key: `smartthings:range:${device.deviceId}`.toLowerCase(),
+        source: 'SmartThings',
+        category: 'Light',  // treated as power device so alerts fire
+        name: device.label ?? 'Range',
+        state,
+        rangeOnSince: state === 'on' ? new Date().toISOString() : null,
+      })
+    }
+
+    if (isThermo) {
+      const mode        = main?.thermostatMode?.thermostatMode?.value ?? 'unknown'
+      const setpoint    = main?.thermostatHeatingSetpoint?.heatingSetpoint?.value ??
+                          main?.thermostatCoolingSetpoint?.coolingSetpoint?.value
+      const temp        = main?.temperatureMeasurement?.temperature?.value
+      const state       = `${mode}${setpoint ? ' ' + Math.round(setpoint) + 'F' : ''}${temp ? ' (' + Math.round(temp) + 'F)' : ''}`
+      items.push({
+        key: `smartthings:thermostat:${device.deviceId}`.toLowerCase(),
+        source: 'SmartThings',
+        category: 'Sensor',
+        name: device.label ?? 'Thermostat',
+        state,
+      })
+    }
+
+    await new Promise(r => setTimeout(r, 200))
+  }
+
+  return items
+}
+
 async function collectAllItems(ringApi) {
-  const [ringItems, goveeItems, hueItems] = await Promise.all([
+  const [ringItems, goveeItems, hueItems, stItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
       console.log(`Ring skipped: ${err.message}`)
       return []
@@ -305,9 +370,13 @@ async function collectAllItems(ringApi) {
       console.log(`Hue skipped: ${err.message}`)
       return []
     }),
+    withTimeout(collectSmartThingsEvents(), ST_TIMEOUT_SECONDS * 1000, 'SmartThings collection').catch(err => {
+      console.log(`SmartThings skipped: ${err.message}`)
+      return []
+    }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
