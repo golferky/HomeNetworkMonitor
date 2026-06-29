@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.3'
+const WATCHER_VERSION = '2026.06.29.4'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -51,6 +51,10 @@ const SMS_TO = process.env.HOME_EVENT_SMS_TO ?? process.env.RING_BATTERY_SMS_TO 
 const GOVEE_API_KEY = process.env.GOVEE_API_KEY
 const HUE_BRIDGE_IP = process.env.HUE_BRIDGE_IP
 const HUE_USERNAME = process.env.HUE_USERNAME ?? process.env.HUE_API_KEY
+const HUE_ACCESS_TOKEN  = process.env.HUE_ACCESS_TOKEN
+const HUE_REFRESH_TOKEN = process.env.HUE_REFRESH_TOKEN
+const HUE_CLIENT_ID     = process.env.HUE_CLIENT_ID
+const HUE_CLIENT_SECRET = process.env.HUE_CLIENT_SECRET
 const SMARTTHINGS_TOKEN = process.env.SMARTTHINGS_TOKEN
 const ST_TIMEOUT_SECONDS = parseInt(process.env.HOME_ST_TIMEOUT_SECONDS ?? '20', 10)
 const RANGE_ALERT_MINUTES = parseInt(process.env.HOME_RANGE_ALERT_MINUTES ?? '60', 10)
@@ -277,25 +281,76 @@ async function fetchHueJson(path) {
   return json
 }
 
-async function collectHueEvents() {
-  if (!HUE_BRIDGE_IP || !HUE_USERNAME) return []
+let hueTokenCache = {
+  accessToken:  process.env.HUE_ACCESS_TOKEN  ?? null,
+  refreshToken: process.env.HUE_REFRESH_TOKEN ?? null,
+}
 
-  const lights = await fetchHueJson('/lights')
-  const items = []
-
-  for (const [id, light] of Object.entries(lights ?? {})) {
-    if (!light?.state || light.state.on == null) continue
-
-    items.push({
-      key: `hue:light:${light.uniqueid ?? id}`.toLowerCase(),
-      source: 'Hue',
-      category: 'Light',
-      name: light.name ?? `Hue Light ${id}`,
-      state: light.state.on ? 'on' : 'off',
+async function refreshHueToken() {
+  if (!HUE_CLIENT_ID || !HUE_CLIENT_SECRET || !hueTokenCache.refreshToken) return false
+  try {
+    const resp = await fetch('https://api.meethue.com/v2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${HUE_CLIENT_ID}:${HUE_CLIENT_SECRET}`).toString('base64'),
+      },
+      body: `grant_type=refresh_token&refresh_token=${hueTokenCache.refreshToken}`,
     })
+    const data = await resp.json()
+    if (data.access_token) {
+      hueTokenCache.accessToken  = data.access_token
+      hueTokenCache.refreshToken = data.refresh_token ?? hueTokenCache.refreshToken
+      // Save new tokens to .env
+      const envPath = new URL('.env', import.meta.url).pathname
+      if (existsSync(envPath)) {
+        let env = readFileSync(envPath, 'utf-8')
+        env = env.replace(/HUE_ACCESS_TOKEN=.*/, `HUE_ACCESS_TOKEN=${data.access_token}`)
+        if (data.refresh_token) env = env.replace(/HUE_REFRESH_TOKEN=.*/, `HUE_REFRESH_TOKEN=${data.refresh_token}`)
+        writeFileSync(envPath, env)
+      }
+      console.log('Hue token refreshed.')
+      return true
+    }
+  } catch (e) {
+    console.warn(`Hue token refresh failed: ${e.message}`)
   }
+  return false
+}
 
-  return items
+async function collectHueEvents() {
+  if (!hueTokenCache.accessToken || !HUE_USERNAME) return []
+
+  try {
+    const resp = await fetch(
+      `https://api.meethue.com/route/api/${HUE_USERNAME}/lights`,
+      { headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}` } }
+    )
+
+    // Token expired — try refresh
+    if (resp.status === 401) {
+      const refreshed = await refreshHueToken()
+      if (!refreshed) return []
+      return collectHueEvents()
+    }
+
+    const lights = await resp.json()
+    const items = []
+
+    for (const [id, light] of Object.entries(lights ?? {})) {
+      if (!light?.state || light.state.on == null) continue
+      items.push({
+        key: `hue:light:${light.uniqueid ?? id}`.toLowerCase(),
+        source: 'Hue',
+        category: 'Light',
+        name: light.name ?? `Hue Light ${id}`,
+        state: light.state.on ? 'on' : 'off',
+      })
+    }
+    return items
+  } catch (e) {
+    throw new Error(`Hue remote API failed: ${e.message}`)
+  }
 }
 
 async function collectSmartThingsEvents() {
@@ -741,7 +796,7 @@ async function main() {
   })
 
   ringApi.onRefreshTokenUpdated.subscribe(({ newRefreshToken }) => saveToken(newRefreshToken))
-  startHueWebhookListener()
+  if (!RUN_ONCE) startHueWebhookListener()
 
   do {
     try {
