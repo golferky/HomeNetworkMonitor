@@ -2,10 +2,11 @@ import { RingApi } from 'ring-client-api'
 import nodemailer from 'nodemailer'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { exec } from 'child_process'
+import dgram from 'dgram'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.1'
+const WATCHER_VERSION = '2026.06.29.2'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -52,6 +53,8 @@ const HUE_USERNAME = process.env.HUE_USERNAME ?? process.env.HUE_API_KEY
 const SMARTTHINGS_TOKEN = process.env.SMARTTHINGS_TOKEN
 const ST_TIMEOUT_SECONDS = parseInt(process.env.HOME_ST_TIMEOUT_SECONDS ?? '20', 10)
 const RANGE_ALERT_MINUTES = parseInt(process.env.HOME_RANGE_ALERT_MINUTES ?? '60', 10)
+const LG_TIMEOUT_SECONDS  = parseInt(process.env.HOME_LG_TIMEOUT_SECONDS ?? '10', 10)
+const LG_SSDP_WAIT_MS     = parseInt(process.env.HOME_LG_SSDP_WAIT_MS ?? '3000', 10)
 
 async function loadToken() {
   const data = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
@@ -356,8 +359,98 @@ async function collectSmartThingsEvents() {
   return items
 }
 
+// Cache discovered LG TV IPs across polls
+const lgTvCache = new Map()  // ip -> { name, ip }
+
+async function discoverLgTvs() {
+  return new Promise((resolve) => {
+    const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true })
+    const found = new Map()
+
+    const msg = Buffer.from(
+      'M-SEARCH * HTTP/1.1\r\n' +
+      'HOST: 239.255.255.250:1900\r\n' +
+      'MAN: "ssdp:discover"\r\n' +
+      'MX: 2\r\n' +
+      'ST: urn:lge-com:service:webos-second-screen:1\r\n\r\n'
+    )
+
+    socket.on('message', (buf, rinfo) => {
+      const text = buf.toString()
+      if (text.includes('lge') || text.includes('LG') || text.includes('webos')) {
+        if (!found.has(rinfo.address)) {
+          found.set(rinfo.address, { ip: rinfo.address, name: `LG TV (${rinfo.address})` })
+        }
+      }
+    })
+
+    socket.on('error', () => { try { socket.close() } catch {} resolve([]) })
+
+    socket.bind(() => {
+      try {
+        socket.setBroadcast(true)
+        socket.send(msg, 0, msg.length, 1900, '239.255.255.250')
+      } catch (e) {
+        socket.close()
+        resolve([])
+        return
+      }
+      setTimeout(() => {
+        try { socket.close() } catch {}
+        resolve([...found.values()])
+      }, LG_SSDP_WAIT_MS)
+    })
+  })
+}
+
+async function fetchLgTvState(tv) {
+  // LG WebOS uses port 3000 for REST-like status
+  const response = await fetch(`http://${tv.ip}:3000/`, {
+    signal: AbortSignal.timeout(LG_TIMEOUT_SECONDS * 1000)
+  })
+  // If it responds, TV is on
+  return response.ok ? 'on' : 'off'
+}
+
+async function collectLgTvEvents() {
+  // Re-discover periodically — every 10 polls (~10 min)
+  if (lgTvCache.size === 0) {
+    const tvs = await discoverLgTvs()
+    tvs.forEach(tv => lgTvCache.set(tv.ip, tv))
+    if (tvs.length > 0) {
+      console.log(`LG TVs discovered: ${tvs.map(t => t.ip).join(', ')}`)
+    }
+  }
+
+  if (lgTvCache.size === 0) return []
+
+  const items = []
+  for (const tv of lgTvCache.values()) {
+    try {
+      const state = await fetchLgTvState(tv)
+      items.push({
+        key: `lg:tv:${tv.ip}`.toLowerCase(),
+        source: 'LG',
+        category: 'Light',
+        name: tv.name,
+        state,
+      })
+    } catch {
+      // TV unreachable — assume off
+      items.push({
+        key: `lg:tv:${tv.ip}`.toLowerCase(),
+        source: 'LG',
+        category: 'Light',
+        name: tv.name,
+        state: 'off',
+      })
+    }
+  }
+  return items
+}
+
 async function collectAllItems(ringApi) {
-  const [ringItems, goveeItems, hueItems, stItems] = await Promise.all([
+  const [ringItems, goveeItems, hueItems, stItems, lgItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
       console.log(`Ring skipped: ${err.message}`)
       return []
@@ -374,9 +467,13 @@ async function collectAllItems(ringApi) {
       console.log(`SmartThings skipped: ${err.message}`)
       return []
     }),
+    withTimeout(collectLgTvEvents(), (LG_TIMEOUT_SECONDS + LG_SSDP_WAIT_MS / 1000 + 2) * 1000, 'LG TV collection').catch(err => {
+      console.log(`LG TV skipped: ${err.message}`)
+      return []
+    }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
