@@ -1,0 +1,270 @@
+{
+  "devices": [
+    {
+      "name": "Hue Bridge",
+      "mac": "00:17:88:2c:3d:f0",
+      "ip": "192.168.1.2",
+      "notify": false,
+      "category": "infrastructure"
+    },
+    {
+      "name": "Bose SoundTouch",
+      "mac": "60:e8:5b:74:e5:13",
+      "ip": "192.168.1.5",
+      "notify": false,
+      "category": "audio"
+    },
+    {
+      "name": "Honeywell Thermostat",
+      "mac": "00:d0:2d:45:0d:eb",
+      "ip": "192.168.1.6",
+      "notify": true,
+      "category": "climate"
+    },
+    {
+      "name": "Ring Doorbell (front)",
+      "mac": "a8:e2:c1:3f:99:d9",
+      "ip": "192.168.1.7",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Ring Stick Up Cam 1",
+      "mac": "54:e0:19:0c:4f:86",
+      "ip": "192.168.1.8",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Sonos Beam",
+      "mac": "48:a6:b8:41:77:4e",
+      "ip": "192.168.1.10",
+      "notify": false,
+      "category": "audio"
+    },
+    {
+      "name": "Sonos Speaker 2",
+      "mac": "34:7e:5c:c7:56:ac",
+      "ip": "192.168.1.12",
+      "notify": false,
+      "category": "audio"
+    },
+    {
+      "name": "Echo 1",
+      "mac": "14:0a:c5:67:17:fa",
+      "ip": "192.168.1.13",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "Echo 2",
+      "mac": "08:12:a5:c5:f2:a9",
+      "ip": "192.168.1.14",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "iPad",
+      "mac": "7e:1d:f9:81:bb:44",
+      "ip": "192.168.1.15",
+      "notify": true,
+      "category": "apple"
+    },
+    {
+      "name": "Echo 3",
+      "mac": "50:f5:da:c3:6c:1c",
+      "ip": "192.168.1.18",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "Sonos Speaker 3",
+      "mac": "34:7e:5c:c7:57:00",
+      "ip": "192.168.1.20",
+      "notify": false,
+      "category": "audio"
+    },
+    {
+      "name": "Gary MacBook Pro",
+      "mac": "f4:d4:88:6c:fe:97",
+      "ip": "192.168.1.22",
+      "notify": true,
+      "category": "apple"
+    },
+    {
+      "name": "Nintendo Switch",
+      "mac": "20:0b:cf:22:44:72",
+      "ip": "192.168.1.24",
+      "notify": false,
+      "category": "gaming"
+    },
+    {
+      "name": "LG Gram Laptop",
+      "mac": "08:5b:d6:20:de:ab",
+      "ip": "192.168.1.25",
+      "notify": true,
+      "category": "laptop"
+    },
+    {
+      "name": "Apple TV Basement",
+      "mac": "f0:b3:ec:73:7d:4b",
+      "ip": "192.168.1.29",
+      "notify": false,
+      "category": "appletv"
+    },
+    {
+      "name": "HP-WAVE Laptop",
+      "mac": "30:e3:7a:0b:f5:0e",
+      "ip": "192.168.1.30",
+      "notify": false,
+      "category": "laptop"
+    },
+    {
+      "name": "LG Gram 16 Laptop",
+      "mac": "dc:21:48:85:89:dc",
+      "ip": "192.168.1.31",
+      "notify": false,
+      "category": "laptop"
+    },
+    {
+      "name": "Amazon Device",
+      "mac": "24:4c:e3:5d:51:0d",
+      "ip": "192.168.1.42",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "Apple TV Living Room",
+      "mac": "9c:3e:53:18:3c:f7",
+      "ip": "192.168.1.48",
+      "notify": false,
+      "category": "appletv"
+    },
+    {
+      "name": "HomePod mini Office",
+      "mac": "04:99:b9:a6:0a:59",
+      "ip": "192.168.1.52",
+      "notify": false,
+      "category": "apple"
+    },
+    {
+      "name": "Samsung Range",
+      "mac": "50:fd:d5:99:86:cd",
+      "ip": "192.168.1.53",
+      "notify": true,
+      "category": "appliance"
+    },
+    {
+      "name": "Xbox One",
+      "mac": "bc:83:85:ad:96:4b",
+      "ip": "192.168.1.67",
+      "notify": false,
+      "category": "gaming"
+    },
+    {
+      "name": "LG WebOS TV",
+      "mac": "04:09:86:66:c1:26",
+      "ip": "192.168.1.71",
+      "notify": true,
+      "category": "tv"
+    },
+    {
+      "name": "Apple TV Bedroom",
+      "mac": "f0:b3:ec:78:d1:5d",
+      "ip": "192.168.1.76",
+      "notify": false,
+      "category": "appletv"
+    },
+    {
+      "name": "Ring Stick Up Cam 2",
+      "mac": "64:9a:63:26:cc:da",
+      "ip": "192.168.1.93",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Ring Doorbell 2",
+      "mac": "90:48:6c:7e:77:3e",
+      "ip": "192.168.1.95",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Ring Doorbell 3",
+      "mac": "34:3e:a4:a9:d6:5f",
+      "ip": "192.168.1.96",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Gary iPhone 16 Pro Max",
+      "mac": "42:7b:9c:a2:2a:0c",
+      "ip": "192.168.1.109",
+      "notify": true,
+      "category": "phone"
+    },
+    {
+      "name": "Amazon Device 2",
+      "mac": "54:2b:1c:e4:8a:18",
+      "ip": "192.168.1.134",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "Ring Stick Up Cam 3",
+      "mac": "ac:9f:c3:8c:15:ca",
+      "ip": "192.168.1.151",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Ring Doorbell 4",
+      "mac": "cc:3b:fb:a9:aa:70",
+      "ip": "192.168.1.152",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Tesla",
+      "mac": "0c:29:8f:78:c3:ec",
+      "ip": "192.168.1.157",
+      "notify": true,
+      "category": "vehicle"
+    },
+    {
+      "name": "Fire TV Stick 4K",
+      "mac": "8c:2a:85:bc:58:6e",
+      "ip": "192.168.1.161",
+      "notify": false,
+      "category": "amazon"
+    },
+    {
+      "name": "QNAP NAS",
+      "mac": "24:5e:be:6f:56:c4",
+      "ip": "192.168.1.176",
+      "notify": true,
+      "category": "infrastructure"
+    },
+    {
+      "name": "Mac Mini",
+      "mac": "d0:11:e5:6e:cd:1b",
+      "ip": "192.168.1.190",
+      "notify": false,
+      "category": "infrastructure"
+    },
+    {
+      "name": "Ring Spotlight Cam",
+      "mac": "c4:db:ad:9e:6c:73",
+      "ip": "192.168.1.199",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Windows Desktop",
+      "mac": "8c:ae:4c:a9:48:be",
+      "ip": "192.168.1.201",
+      "notify": true,
+      "category": "computer"
+    }
+  ]
+}
