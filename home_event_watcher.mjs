@@ -3,10 +3,11 @@ import nodemailer from 'nodemailer'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { exec } from 'child_process'
 import dgram from 'dgram'
+import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.2'
+const WATCHER_VERSION = '2026.06.29.3'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -450,6 +451,7 @@ async function collectLgTvEvents() {
 }
 
 async function collectAllItems(ringApi) {
+  const hueWebhookItems = await collectHueWebhookEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
       console.log(`Ring skipped: ${err.message}`)
@@ -473,7 +475,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -684,6 +686,50 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timer]).finally(() => clearTimeout(timeout))
 }
 
+const HUE_WEBHOOK_PORT = parseInt(process.env.HUE_WEBHOOK_PORT ?? '5555', 10)
+const pendingHueEvents = []
+
+function startHueWebhookListener() {
+  const server = http.createServer((req, res) => {
+    if (req.method !== 'POST' || req.url !== '/hue-event') {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      try {
+        const event = JSON.parse(body)
+        // event: { name, state } e.g. { name: "Living Room", state: "on" }
+        pendingHueEvents.push({
+          key: `hue:webhook:${event.name}`.toLowerCase().replace(/\s+/g, ':'),
+          source: 'Hue',
+          category: 'Light',
+          name: event.name,
+          state: event.state,
+        })
+        console.log(`Hue webhook received: ${event.name} -> ${event.state}`)
+        res.writeHead(200)
+        res.end('ok')
+      } catch (e) {
+        res.writeHead(400)
+        res.end('bad request')
+      }
+    })
+  })
+  server.listen(HUE_WEBHOOK_PORT, () => {
+    console.log(`Hue webhook listener on port ${HUE_WEBHOOK_PORT}`)
+  })
+}
+
+async function collectHueWebhookEvents() {
+  if (pendingHueEvents.length === 0) return []
+  const events = [...pendingHueEvents]
+  pendingHueEvents.length = 0
+  return events
+}
+
 async function main() {
   console.log(`Home Event Watcher v${WATCHER_VERSION}`)
   console.log(`Polling every ${INTERVAL_SECONDS}s; cause window ${CAUSE_WINDOW_SECONDS}s.`)
@@ -695,6 +741,7 @@ async function main() {
   })
 
   ringApi.onRefreshTokenUpdated.subscribe(({ newRefreshToken }) => saveToken(newRefreshToken))
+  startHueWebhookListener()
 
   do {
     try {
