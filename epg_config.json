@@ -1,0 +1,10 @@
+{
+  "guide_path": "/Volumes/EPG/guide/guide.xml",
+  "guide_db_path": "/Users/garyscudder/epg/guide.db",
+  "db_path": "/Volumes/EPG/Movies.db",
+  "timezone": "America/New_York",
+  "ts_input": "/Users/garyscudder/Movies",
+  "ts_output": "/Users/garyscudder/Movies/Converted",
+  "sd_user": "baseballfanky",
+  "sd_pass": "Muh8Xwi3Sax4"
+}
