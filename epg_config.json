@@ -6,5 +6,12 @@
   "ts_input": "/Users/garyscudder/Movies",
   "ts_output": "/Users/garyscudder/Movies/Converted",
   "sd_user": "baseballfanky",
-  "sd_pass": "Muh8Xwi3Sax4"
+  "sd_pass": "Muh8Xwi3Sax4",
+  "epg_url": "http://primestreams.tv:826/",
+  "epg_user": "jFYSJ6UprmRRO",
+  "epg_pass": "Hq0Nl2sZqRGSR9yo",
+  "plex_path": "/Volumes/Plex/Movies",
+  "rec_path": "/Users/garyscudder/Movies/Recordings",
+  "omdb_key": "96b19d",
+  "tmdb_key": "ba3e869b884358a13fe55237b295de04"
 }
