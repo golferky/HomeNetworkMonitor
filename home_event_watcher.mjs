@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.20.1'
+const WATCHER_VERSION = '2026.07.20.2'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -374,7 +374,10 @@ async function collectSmartThingsEvents() {
     const isGarage = category.includes('garage') || category.includes('door') ||
                      device.label?.toLowerCase().includes('door') ||
                      device.label?.toLowerCase().includes('garage')
-    if (!isThermo && !isRange && !isGarage) continue
+    const isLock   = category.includes('lock') ||
+                     device.label?.toLowerCase().includes('lock') ||
+                     device.label?.toLowerCase().includes('kwikset')
+    if (!isThermo && !isRange && !isGarage && !isLock) continue
 
     // Fetch device status
     const statusResp = await fetch(
@@ -406,6 +409,18 @@ async function collectSmartThingsEvents() {
         category: 'Contact',
         name: device.label ?? 'Garage Door',
         state: doorState === 'open' ? 'active' : 'clear',
+      })
+    }
+
+    // Lock (Kwikset etc)
+    const lockState = main?.lock?.lock?.value
+    if (lockState) {
+      items.push({
+        key: `smartthings:lock:${device.deviceId}`.toLowerCase(),
+        source: 'SmartThings',
+        category: 'Contact',
+        name: device.label ?? 'Lock',
+        state: lockState === 'unlocked' ? 'active' : 'clear',
       })
     }
 
@@ -712,6 +727,10 @@ function formatEvent(event) {
     action = event.state === 'on' ? 'turned on' : 'turned off'
   } else if (event.source === 'Network') {
     action = event.state === 'active' ? 'came online' : 'went offline'
+  } else if (event.name?.toLowerCase().includes('lock') || event.name?.toLowerCase().includes('door') || event.name?.toLowerCase().includes('front')) {
+    action = event.state === 'active' ? 'was unlocked' : 'was locked'
+  } else if (event.name?.toLowerCase().includes('garage')) {
+    action = event.state === 'active' ? 'was opened' : 'was closed'
   } else {
     if (event.state === 'active') {
       action = event.name.toLowerCase().includes('motion') ? 'detected motion' : 'was opened'
