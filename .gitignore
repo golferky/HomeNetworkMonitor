@@ -1,45 +1,13 @@
-# Python
-__pycache__/
-*.pyc
 
-# Databases & backups
-*.db
-*.db-journal
-db/
-backups/
-*.recovered.db
+# Logs
+logs/
+*.log
+convert.log
+server.log
 
-# Credentials / tokens / configs with passwords
-config.json
-epg_config.json
-config.json.bak_*
-config_before_*.json
-sd_token.json
-token.pickle
-credentials.json
-ring_token*.json
-apple_devices.json
+# Environment / secrets
+.env
 
-# Large/generated data
-guide/
-upcoming.json
-convert_queue.json
-ring_battery_history.json
-ring_battery_report.html
-
-# Compiled .NET binaries
-epgmanager/
-importer/
-run/
-source/
-
-# Backup source files
-*.bak_*
-
-# macOS
-.DS_Store
-**/.DS_Store
-
-# Node
-node_modules/
-package-lock.json
+# Runtime data files
+home_event_history.json
+fix_years.py.bak_*
