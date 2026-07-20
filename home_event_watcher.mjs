@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.20.2'
+const WATCHER_VERSION = '2026.07.20.3'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -374,7 +374,7 @@ async function collectSmartThingsEvents() {
     const isGarage = category.includes('garage') || category.includes('door') ||
                      device.label?.toLowerCase().includes('door') ||
                      device.label?.toLowerCase().includes('garage')
-    const isLock   = category.includes('lock') ||
+    const isLock   = category.includes('lock') || category.includes('smartlock') ||
                      device.label?.toLowerCase().includes('lock') ||
                      device.label?.toLowerCase().includes('kwikset')
     if (!isThermo && !isRange && !isGarage && !isLock) continue
