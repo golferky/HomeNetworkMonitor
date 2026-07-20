@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.7'
+const WATCHER_VERSION = '2026.07.20.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -371,7 +371,10 @@ async function collectSmartThingsEvents() {
     const isRange  = category.includes('range') || category.includes('oven') ||
                      device.label?.toLowerCase().includes('range') ||
                      device.label?.toLowerCase().includes('oven')
-    if (!isThermo && !isRange) continue
+    const isGarage = category.includes('garage') || category.includes('door') ||
+                     device.label?.toLowerCase().includes('door') ||
+                     device.label?.toLowerCase().includes('garage')
+    if (!isThermo && !isRange && !isGarage) continue
 
     // Fetch device status
     const statusResp = await fetch(
@@ -383,7 +386,6 @@ async function collectSmartThingsEvents() {
 
     if (isRange) {
       const ovenMode = main?.ovenOperatingState?.machineState?.value
-      // Only treat as 'on' if we have a definitive active state
       const activeStates = ['running', 'heating', 'preheating', 'delayed start', 'oven on']
       const state = ovenMode && activeStates.some(s => ovenMode.toLowerCase().includes(s)) ? 'on' : 'off'
       items.push({
@@ -392,6 +394,18 @@ async function collectSmartThingsEvents() {
         category: 'Light',
         name: device.label ?? 'Range',
         state,
+      })
+    }
+
+    // Garage door
+    const doorState = main?.doorControl?.door?.value
+    if (doorState) {
+      items.push({
+        key: `smartthings:door:${device.deviceId}`.toLowerCase(),
+        source: 'SmartThings',
+        category: 'Contact',
+        name: device.label ?? 'Garage Door',
+        state: doorState === 'open' ? 'active' : 'clear',
       })
     }
 
