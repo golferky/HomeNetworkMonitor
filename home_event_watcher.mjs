@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.06.29.6'
+const WATCHER_VERSION = '2026.06.29.7'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -428,10 +428,31 @@ function loadDeviceRegistry() {
 }
 
 async function pingDevice(ip) {
-  try {
-    const { stdout } = await execAsync(`ping -c 1 -W 1 ${ip}`, { timeout: 3000 })
-    return stdout.includes('1 packets received') || stdout.includes('1 received')
-  } catch { return false }
+  // Try twice with longer timeout before declaring offline
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { stdout } = await execAsync(`ping -c 1 -W 3 ${ip}`, { timeout: 5000 })
+      if (stdout.includes('1 packets received') || stdout.includes('1 received')) return true
+    } catch {}
+    if (attempt === 0) await new Promise(r => setTimeout(r, 1000))
+  }
+  return false
+}
+
+// Track consecutive failures to avoid false offline alerts
+const pingFailures = new Map()
+
+async function pingDeviceWithHysteresis(ip, name) {
+  const online = await pingDevice(ip)
+  if (!online) {
+    const failures = (pingFailures.get(ip) ?? 0) + 1
+    pingFailures.set(ip, failures)
+    // Only report offline after 3 consecutive failures (~3 minutes)
+    return failures >= 3 ? false : null  // null = skip this poll
+  } else {
+    pingFailures.delete(ip)
+    return true
+  }
 }
 
 async function collectPresenceEvents() {
@@ -440,7 +461,8 @@ async function collectPresenceEvents() {
 
   const items = []
   for (const device of devices) {
-    const online = await pingDevice(device.ip)
+    const online = await pingDeviceWithHysteresis(device.ip, device.name)
+    if (online === null) continue  // skip this poll - not enough failures yet
     items.push({
       key: `presence:${device.mac}`.toLowerCase(),
       source: 'Network',
