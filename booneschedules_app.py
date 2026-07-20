@@ -3,7 +3,7 @@
 Boone County Golf Schedule → Google Calendar  v1.0
 Local web app — run with: python booneschedules_app.py, then open http://localhost:5000
 """
-VERSION = "1.0"
+VERSION = "1.1"
 
 import imaplib
 import email
@@ -57,14 +57,14 @@ def save_config(cfg):
 
 # ─── Yahoo Mail ───────────────────────────────────────────────────────────────
 
-def fetch_emails_with_pdfs(cfg):
+def fetch_emails_with_pdfs(cfg, days_back=60):
     results = []
     mail = imaplib.IMAP4_SSL('imap.mail.yahoo.com', 993)
     mail.login(cfg['yahoo_email'], cfg['yahoo_app_password'])
     mail.select('INBOX')
 
     from datetime import datetime, timedelta
-    since_date = (datetime.now() - timedelta(days=60)).strftime('%d-%b-%Y')
+    since_date = (datetime.now() - timedelta(days=days_back)).strftime('%d-%b-%Y')
     subject_kw = cfg.get('subject_keyword', 'Schedules')
     search_criteria = f'FROM "{cfg["sender_email"]}" SUBJECT "{subject_kw}" SINCE {since_date}'
     _, ids = mail.search(None, search_criteria)
@@ -489,7 +489,7 @@ HTML = """<!DOCTYPE html>
 
 <header>
   <span style="font-size:22px;">⛳</span>
-  <h1>Boone Schedules → Calendar <span class="version">v1.0</span></h1>
+  <h1>Boone Schedules → Calendar <span class="version">v1.1</span></h1>
   <span id="gcal-status" class="gcal-badge disconnected">● Google Calendar</span>
   <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
 </header>
@@ -502,6 +502,10 @@ HTML = """<!DOCTYPE html>
       <div class="field">
         <label>Sender email to search for</label>
         <input id="scan-sender" type="email" placeholder="someone@example.com">
+      </div>
+      <div class="field" style="max-width:130px;">
+        <label>Days back to search</label>
+        <input id="scan-days" type="number" value="60" min="1" max="365">
       </div>
       <div class="field" id="employee-field" style="display:none;">
         <label>Show schedule for</label>
@@ -675,10 +679,11 @@ async function scan() {
   extractedEvents = [];
 
   try {
+    const daysBack = parseInt(document.getElementById('scan-days').value) || 60;
     const r = await fetch('/scan', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ sender_email: sender }),
+      body: JSON.stringify({ sender_email: sender, days_back: daysBack }),
     });
     const d = await r.json();
     if (d.error) { setStatus('Error: ' + d.error, 'err'); return; }
@@ -882,8 +887,9 @@ def scan():
 
     cfg['sender_email'] = sender  # use what was passed
 
+    days_back = int(data.get('days_back', 60))
     try:
-        emails = fetch_emails_with_pdfs(cfg)
+        emails = fetch_emails_with_pdfs(cfg, days_back=days_back)
     except Exception as e:
         return jsonify({'error': f'Yahoo Mail error: {e}'}), 500
 
