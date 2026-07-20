@@ -1,0 +1,4870 @@
+{
+  "states": {
+    "ring:light:office a19 smart bulb": {
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "state": "on",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T08:50:15.467Z"
+    },
+    "ring:motion:mailbox sensor": {
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "state": "clear",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T17:18:46.419Z"
+    },
+    "ring:light:front": {
+      "source": "Ring",
+      "category": "Light",
+      "name": "Front",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-21T09:26:10.269Z"
+    },
+    "govee:15:03:dd:99:83:46:67:49": {
+      "source": "Govee",
+      "category": "Light",
+      "name": "Floor Lamp Basic Left",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-21T09:26:10.269Z"
+    },
+    "govee:19:d2:d0:03:c1:46:2f:0d": {
+      "source": "Govee",
+      "category": "Light",
+      "name": "Floor Lamp Basic Right",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-21T09:26:10.269Z"
+    },
+    "govee:e2:d9:98:17:3c:df:5d:80": {
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T02:11:31.916Z"
+    },
+    "ring:light:office": {
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "state": "on",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T08:50:15.467Z"
+    },
+    "smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294": {
+      "source": "SmartThings",
+      "category": "Light",
+      "name": "Range",
+      "state": "off",
+      "lastSeenAt": "2026-06-29T15:29:35.543Z",
+      "lastChangedAt": "2026-06-29T09:56:44.316Z"
+    },
+    "smartthings:thermostat:904f48c1-b6ef-4b03-b311-65a7733a967d": {
+      "source": "SmartThings",
+      "category": "Sensor",
+      "name": "THERMOSTAT",
+      "state": "cool 70F (76F)",
+      "lastSeenAt": "2026-06-29T15:29:35.543Z",
+      "lastChangedAt": "2026-06-29T09:56:44.316Z"
+    },
+    "lg:tv:192.168.1.71": {
+      "source": "LG",
+      "category": "Light",
+      "name": "LG TV (192.168.1.71)",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T10:02:42.511Z"
+    },
+    "hue:light:00:17:88:01:10:2f:b8:ef-0b": {
+      "source": "Hue",
+      "category": "Light",
+      "name": "Kitchen",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:16:44.086Z"
+    },
+    "hue:light:00:17:88:01:10:2f:b9:fb-0b": {
+      "source": "Hue",
+      "category": "Light",
+      "name": "Right lamp",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:16:44.086Z"
+    },
+    "hue:light:00:17:88:01:02:c8:b9:62-0b": {
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:16:44.086Z"
+    },
+    "hue:light:00:17:88:01:04:5b:ae:cb-0b": {
+      "source": "Hue",
+      "category": "Light",
+      "name": "Floodlight",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:16:44.086Z"
+    },
+    "hue:light:00:17:88:01:02:d1:bc:10-0b": {
+      "source": "Hue",
+      "category": "Light",
+      "name": "Left lamp",
+      "state": "off",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:16:44.086Z"
+    },
+    "presence:00:d0:2d:45:0d:eb": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T09:02:34.682Z"
+    },
+    "presence:7e:1d:f9:81:bb:44": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "state": "clear",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:34:48.310Z"
+    },
+    "presence:f4:d4:88:6c:fe:97": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary MacBook Pro",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T18:14:04.437Z"
+    },
+    "presence:08:5b:d6:20:de:ab": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "LG Gram Laptop",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T00:16:29.137Z"
+    },
+    "presence:50:fd:d5:99:86:cd": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:32:39.592Z"
+    },
+    "presence:04:09:86:66:c1:26": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "LG WebOS TV",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T18:14:04.437Z"
+    },
+    "presence:42:7b:9c:a2:2a:0c": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-30T10:22:03.644Z"
+    },
+    "presence:0c:29:8f:78:c3:ec": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Tesla",
+      "state": "clear",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T18:14:04.437Z"
+    },
+    "presence:24:5e:be:6f:56:c4": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "QNAP NAS",
+      "state": "active",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T18:14:04.437Z"
+    },
+    "presence:8c:ae:4c:a9:48:be": {
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Windows Desktop",
+      "state": "clear",
+      "lastSeenAt": "2026-06-30T10:44:52.331Z",
+      "lastChangedAt": "2026-06-29T18:14:04.437Z"
+    }
+  },
+  "events": [
+    {
+      "at": "2026-06-21T10:42:06.674Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-21T13:52:16.057Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T00:31:57.525Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T00:44:10.412Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T01:18:45.204Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T09:30:53.019Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T12:05:26.664Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-22T17:22:22.605Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-22T17:23:24.540Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-22T22:49:57.659Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-23T03:11:18.296Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-23T09:16:20.022Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-23T18:07:05.200Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-24T07:58:45.623Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-24T12:30:12.395Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-24T15:51:32.393Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-24T15:52:34.084Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-24T16:19:00.355Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-24T16:20:02.646Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-24T16:50:32.796Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-24T16:51:36.646Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-24T16:56:41.707Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-24T18:51:35.918Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-25T08:41:16.789Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-25T10:10:46.151Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-25T20:40:07.225Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-25T23:57:23.253Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-26T08:23:44.846Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-26T11:14:36.634Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-26T17:20:48.643Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-26T23:21:47.377Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-27T08:22:45.759Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-27T11:29:55.169Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-27T15:00:28.794Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T15:01:30.665Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-27T17:53:22.333Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T17:54:24.264Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-27T19:56:25.509Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T19:57:27.259Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-27T21:10:39.762Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T21:12:42.509Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-27T21:48:17.558Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T21:49:19.566Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-27T22:12:42.832Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-27T22:13:45.076Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-28T01:04:36.506Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T01:05:38.541Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T09:01:28.660Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T11:59:34.663Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T11:59:34.663Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:00:34.315Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:00:35.580Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:01:36.727Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:01:36.727Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:04:40.347Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:04:55.901Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:12:22.906Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:13:24.249Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:23:47.650Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T12:23:59.303Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T21:30:01.411Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-28T21:30:01.411Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T01:24:16.622Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T01:24:16.622Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T09:23:22.702Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T09:23:22.702Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T11:02:36.188Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T11:04:38.408Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T11:04:38.408Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T14:33:03.488Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T14:33:37.114Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T17:18:22.409Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T17:18:46.419Z",
+      "key": "ring:motion:mailbox sensor",
+      "source": "Ring",
+      "category": "Motion",
+      "name": "Mailbox Sensor",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T17:36:44.876Z",
+      "key": "hue:light:00:17:88:01:10:2f:b8:ef-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Kitchen",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T17:37:48.084Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T17:37:48.084Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T17:37:48.084Z",
+      "key": "hue:light:00:17:88:01:10:2f:b8:ef-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Kitchen",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T18:14:40.187Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:16:47.115Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:17:51.147Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:19:58.451Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:23:08.159Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:24:11.255Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:29:28.249Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:30:31.209Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:48:30.357Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:49:33.534Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:50:37.459Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:51:41.678Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T18:54:51.877Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T18:55:54.787Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:01:11.321Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:02:14.378Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:05:24.978Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:06:27.733Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:13:53.540Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:14:56.557Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:19:10.697Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:20:15.023Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:20:15.023Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:21:18.000Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T19:28:40.596Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T19:29:43.924Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T20:38:42.981Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T20:38:42.981Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-29T20:47:07.666Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:06:23.344Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:07:28.666Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T21:07:28.666Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:08:32.551Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T21:26:44.372Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:27:48.252Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T21:29:57.454Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:31:01.660Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T21:42:47.213Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T21:43:51.341Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T22:34:06.504Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T22:38:19.945Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T22:39:23.150Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T22:56:15.744Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T22:57:18.710Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T23:24:45.047Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T23:25:48.104Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T23:27:55.570Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T23:28:58.405Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-29T23:46:55.566Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-29T23:47:58.354Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:02:45.755Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:03:48.524Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:15:25.871Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:15:25.871Z",
+      "key": "presence:08:5b:d6:20:de:ab",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "LG Gram Laptop",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:16:29.137Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:16:29.137Z",
+      "key": "presence:08:5b:d6:20:de:ab",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "LG Gram Laptop",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:34:21.569Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:35:24.366Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:39:36.707Z",
+      "key": "hue:light:00:17:88:01:10:2f:b8:ef-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Kitchen",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T00:39:36.707Z",
+      "key": "hue:light:00:17:88:01:10:2f:b9:fb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Right lamp",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T00:39:36.707Z",
+      "key": "hue:light:00:17:88:01:02:d1:bc:10-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Left lamp",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T00:43:50.913Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:44:53.884Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:53:22.072Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T00:54:24.993Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T00:59:42.738Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:00:45.539Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:06:02.913Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:07:05.591Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:09:13.308Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T01:09:13.308Z",
+      "key": "hue:light:00:17:88:01:04:5b:ae:cb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Floodlight",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T01:11:20.901Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:12:25.295Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:12:25.295Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:13:28.299Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:31:24.578Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T01:38:48.330Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T01:38:48.330Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:40:55.221Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T01:40:55.221Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:43:02.507Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:45:10.390Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T01:47:17.403Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:53:44.825Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T01:54:49.344Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:11:31.916Z",
+      "key": "govee:e2:d9:98:17:3c:df:5d:80",
+      "source": "Govee",
+      "category": "Light",
+      "name": "Govee Smart LED desk",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T02:13:06.639Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:14:10.768Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:18:28.781Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:19:33.360Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:21:42.617Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:22:47.890Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:23:53.232Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:24:57.383Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:31:23.450Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:32:28.881Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:33:34.079Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:34:39.284Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:37:52.086Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:38:56.790Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:44:17.749Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:45:22.529Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:48:34.540Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:49:38.591Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:50:42.456Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:52:52.132Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:52:52.132Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:56:06.656Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:56:06.656Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T02:57:11.554Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:57:11.554Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T02:59:21.172Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:02:36.122Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:03:40.542Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:05:48.860Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:06:53.241Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:17:38.508Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:18:42.198Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:20:49.968Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:21:54.249Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:31:32.191Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:32:36.402Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:40:08.355Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:41:12.443Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:42:15.334Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:43:21.157Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:43:21.157Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:44:24.034Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:44:24.034Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:45:28.121Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:49:46.356Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:50:50.448Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:51:55.671Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T03:53:00.507Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T03:59:25.714Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:00:29.696Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:01:32.670Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:02:37.401Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:03:40.442Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:04:44.872Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:18:43.025Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:19:45.850Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:19:45.850Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:20:49.545Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:28:18.792Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:29:22.629Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:30:26.981Z",
+      "key": "hue:light:00:17:88:01:10:2f:b9:fb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Right lamp",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T04:30:26.981Z",
+      "key": "hue:light:00:17:88:01:02:d1:bc:10-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Left lamp",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T04:32:34.814Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:33:39.001Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:34:42.245Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:35:46.752Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:36:49.937Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:37:55.151Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:37:55.151Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:38:58.193Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:38:58.193Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:40:02.234Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:41:05.845Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:42:10.005Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:44:17.854Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:45:21.598Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:46:24.674Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:47:30.851Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:47:30.851Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:47:30.851Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:48:35.045Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:48:35.045Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:50:45.074Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T04:51:49.736Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T04:59:19.375Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:00:24.094Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:10:03.721Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:11:08.044Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:13:16.002Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:14:20.194Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:15:22.948Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:16:28.761Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:17:31.421Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:18:35.253Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:29:20.485Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:30:24.316Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:32:32.755Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:33:37.186Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:48:39.582Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:49:44.202Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:51:52.127Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:51:52.127Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:52:56.016Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T05:52:56.016Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:53:59.436Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T05:55:04.667Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:13:20.001Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:14:25.036Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:17:38.139Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:18:42.064Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:19:45.315Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:21:52.564Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:24:01.324Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:25:05.501Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:27:13.647Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:28:18.000Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:36:52.141Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:37:56.137Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:40:03.855Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:41:08.066Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:43:17.576Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:44:21.786Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:51:51.333Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:52:56.076Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T06:53:58.843Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T06:55:03.064Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:05:47.480Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:06:50.677Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:06:50.677Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:07:54.476Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:12:12.528Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:13:15.890Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:13:15.890Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:14:20.081Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:15:23.745Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:16:27.988Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:18:35.787Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:19:39.806Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:28:14.056Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:29:17.986Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:34:40.975Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:35:45.130Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:37:53.601Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:40:00.640Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:44:18.476Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T07:45:22.757Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T07:59:21.116Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:00:26.067Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:01:31.016Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:02:34.936Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:06:53.386Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:07:57.708Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:09:02.811Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:10:07.769Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:10:07.769Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:11:11.849Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:14:25.709Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:15:29.591Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:18:41.606Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:19:46.648Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:20:49.825Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:21:53.708Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:26:11.564Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:27:14.244Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:27:14.244Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:28:18.995Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:29:22.224Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:30:26.349Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:32:35.044Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:33:39.374Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:35:48.654Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:36:52.531Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:39:01.433Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:40:05.425Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:42:15.385Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:43:19.974Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:45:28.816Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T08:47:35.489Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:49:43.934Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:50:15.467Z",
+      "key": "ring:light:office",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T08:50:15.467Z",
+      "key": "ring:light:office a19 smart bulb",
+      "source": "Ring",
+      "category": "Light",
+      "name": "Office A19 Smart Bulb",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T08:54:00.192Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:55:04.429Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:56:08.633Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:56:08.633Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:58:16.540Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T08:58:16.540Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:59:20.670Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T08:59:20.670Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:01:30.045Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:01:30.045Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:02:34.682Z",
+      "key": "presence:00:d0:2d:45:0d:eb",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Honeywell Thermostat",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:02:34.682Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:02:34.682Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:04:44.833Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:04:44.833Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:05:49.827Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:05:49.827Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:07:59.481Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:07:59.481Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:09:04.914Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:09:04.914Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:11:15.082Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:11:15.082Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:12:19.823Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:12:19.823Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:14:29.572Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:14:29.572Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:15:34.524Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:15:34.524Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:17:44.874Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:17:44.874Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:18:49.650Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:18:49.650Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:19:53.625Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:22:02.509Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:22:02.509Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:24:12.004Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:24:12.004Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:25:14.703Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:25:14.703Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:25:14.703Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:26:19.531Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:26:19.531Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:27:23.156Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:27:23.156Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:27:23.156Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:28:27.061Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:28:27.061Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:29:32.358Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:30:37.168Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:31:42.011Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:32:45.629Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:33:50.259Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:33:50.259Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:37:03.165Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:43:32.193Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:43:32.193Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:44:36.839Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:44:36.839Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:45:40.900Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:46:44.541Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:47:48.289Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:48:52.370Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:48:52.370Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:49:57.183Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:49:57.183Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:49:57.183Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:50:59.941Z",
+      "key": "hue:light:00:17:88:01:10:2f:b9:fb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Right lamp",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed",
+      "likelyCause": {
+        "at": "2026-06-30T09:49:57.183Z",
+        "source": "Network",
+        "category": "Sensor",
+        "name": "Gary iPhone 16 Pro Max",
+        "state": "active"
+      }
+    },
+    {
+      "at": "2026-06-30T09:50:59.941Z",
+      "key": "hue:light:00:17:88:01:02:d1:bc:10-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Left lamp",
+      "previousState": "off",
+      "state": "on",
+      "kind": "light_changed",
+      "likelyCause": {
+        "at": "2026-06-30T09:49:57.183Z",
+        "source": "Network",
+        "category": "Sensor",
+        "name": "Gary iPhone 16 Pro Max",
+        "state": "active"
+      }
+    },
+    {
+      "at": "2026-06-30T09:50:59.941Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:50:59.941Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:52:03.827Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:53:07.553Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:53:07.553Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:54:10.397Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:55:14.150Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:56:17.731Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:56:17.731Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:57:21.569Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:57:21.569Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:58:24.441Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T09:59:30.365Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T09:59:30.365Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:01:38.909Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:02:44.768Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:02:44.768Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:03:49.493Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:06:00.033Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:07:04.888Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:11:24.365Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:12:29.851Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:12:29.851Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:12:29.851Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:13:32.498Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:13:32.498Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:15:40.328Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:15:40.328Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "hue:light:00:17:88:01:10:2f:b8:ef-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Kitchen",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "hue:light:00:17:88:01:10:2f:b9:fb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Right lamp",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "hue:light:00:17:88:01:02:c8:b9:62-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Bedroom color",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "hue:light:00:17:88:01:04:5b:ae:cb-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Floodlight",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "hue:light:00:17:88:01:02:d1:bc:10-0b",
+      "source": "Hue",
+      "category": "Light",
+      "name": "Left lamp",
+      "previousState": "on",
+      "state": "off",
+      "kind": "light_changed"
+    },
+    {
+      "at": "2026-06-30T10:16:44.086Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:18:52.903Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:19:55.587Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:19:55.587Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:20:59.757Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:22:03.644Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:22:03.644Z",
+      "key": "presence:42:7b:9c:a2:2a:0c",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Gary iPhone 16 Pro Max",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:23:06.698Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:24:10.599Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:25:14.150Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:28:23.841Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:29:27.723Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:29:27.723Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:31:35.530Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:31:35.530Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:32:39.592Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    },
+    {
+      "at": "2026-06-30T10:32:39.592Z",
+      "key": "presence:50:fd:d5:99:86:cd",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "Samsung Range",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:33:43.307Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "clear",
+      "state": "active",
+      "kind": "sensor_triggered"
+    },
+    {
+      "at": "2026-06-30T10:34:48.310Z",
+      "key": "presence:7e:1d:f9:81:bb:44",
+      "source": "Network",
+      "category": "Sensor",
+      "name": "iPad",
+      "previousState": "active",
+      "state": "clear",
+      "kind": "sensor_changed"
+    }
+  ]
+}

@@ -1,11 +1,45 @@
-# Secrets & tokens
-ring_battery_alert.env
-.env
-ring_token.json
+# Python
+__pycache__/
+*.pyc
 
-# History/state files
-home_event_history.json
+# Databases & backups
+*.db
+*.db-journal
+db/
+backups/
+*.recovered.db
+
+# Credentials / tokens / configs with passwords
+config.json
+epg_config.json
+config.json.bak_*
+config_before_*.json
+sd_token.json
+token.pickle
+credentials.json
+ring_token*.json
+apple_devices.json
+
+# Large/generated data
+guide/
+upcoming.json
+convert_queue.json
+ring_battery_history.json
+ring_battery_report.html
+
+# Compiled .NET binaries
+epgmanager/
+importer/
+run/
+source/
+
+# Backup source files
+*.bak_*
+
+# macOS
+.DS_Store
+**/.DS_Store
 
 # Node
 node_modules/
-*.log
+package-lock.json

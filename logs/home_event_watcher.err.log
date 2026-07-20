@@ -1,0 +1,198 @@
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::5555
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at Server.listen (node:net:2170:7)
+    at startHueWebhookListener (file:///Users/garyscudder/epg/home_event_watcher.mjs:819:10)
+    at main (file:///Users/garyscudder/epg/home_event_watcher.mjs:842:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5555
+}
+
+Node.js v25.9.0

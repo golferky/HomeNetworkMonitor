@@ -1,0 +1,15 @@
+{
+  "name": "ring-battery-report",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ring device battery life report",
+  "main": "ring_battery_report.mjs",
+  "scripts": {
+    "start": "node ring_battery_report.mjs"
+  },
+  "dependencies": {
+    "hap-controller": "^0.10.2",
+    "nodemailer": "latest",
+    "ring-client-api": "latest"
+  }
+}

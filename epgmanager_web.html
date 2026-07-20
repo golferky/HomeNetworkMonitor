@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPG Manager Web</title>
+<style>
+:root {
+  --bg:      #0d1117;
+  --bg2:     #161b22;
+  --bg3:     #21262d;
+  --accent:  #1f6feb;
+  --accent2: #388bfd;
+  --text:    #e6edf3;
+  --text2:   #8b949e;
+  --border:  #30363d;
+  --red:     #f85149;
+  --green:   #3fb950;
+  --yellow:  #d29922;
+  --ch-w:    180px;
+  --th-h:    42px;
+  --row-h:   56px;
+  --mpx:     3;        /* pixels per minute */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Header ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.logo{font-size:17px;font-weight:700;color:var(--accent2);letter-spacing:-.5px}
+.logo span{color:var(--text2);font-weight:400}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+#clock{font-size:12px;color:var(--text2);font-family:monospace;min-width:80px;text-align:right}
+
+/* ── Buttons ── */
+.btn{padding:5px 13px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--border)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:var(--accent2)}
+.btn.sm{padding:3px 10px;font-size:12px}
+.btn.ok{border-color:var(--green);color:var(--green)}
+.btn.ok:hover{background:rgba(63,185,80,.1)}
+.btn.ok.filled{background:rgba(63,185,80,.2)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.danger:hover{background:rgba(248,81,73,.1)}
+
+/* ── Tabs ── */
+.tabs{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;padding:0 20px;flex-shrink:0}
+.tab{padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent2);border-bottom-color:var(--accent2)}
+
+/* ── Content ── */
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.panel{display:none;flex:1;overflow:hidden;flex-direction:column}
+.panel.on{display:flex}
+
+/* ── Inputs ── */
+.fi{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+.fi:focus{outline:none;border-color:var(--accent)}
+
+/* ── Empty / Drop ── */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text2);padding:40px;text-align:center}
+.empty-icon{font-size:44px;opacity:.35}
+.empty h2{font-size:18px;color:var(--text)}
+.empty p{font-size:14px;max-width:360px;line-height:1.5}
+.dropzone{border:2px dashed var(--border);border-radius:10px;padding:32px 48px;cursor:pointer;transition:all .2s;margin-top:8px}
+.dropzone:hover,.dropzone.over{border-color:var(--accent2);background:rgba(56,139,253,.06)}
+
+/* ── Stats bar ── */
+.sbar{background:var(--bg3);border-top:1px solid var(--border);padding:5px 16px;font-size:11px;color:var(--text2);display:flex;gap:16px;flex-shrink:0}
+.sbar b{color:var(--text);font-weight:600}
+
+/* ═══════════════════════════════════════
+   GUIDE
+═══════════════════════════════════════ */
+.g-toolbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.g-navtime{font-size:13px;font-weight:600;min-width:220px;text-align:center}
+.g-scroll{flex:1;overflow:auto}
+
+/* sticky time header */
+.g-head{display:flex;position:sticky;top:0;z-index:30;background:var(--bg2);border-bottom:1px solid var(--border);height:var(--th-h)}
+.g-corner{position:sticky;left:0;z-index:40;background:var(--bg2);width:var(--ch-w);min-width:var(--ch-w);border-right:1px solid var(--border);display:flex;align-items:center;padding:0 10px;font-size:11px;color:var(--text2)}
+.g-ticks{position:relative;flex:1;overflow:hidden}
+.g-tick{position:absolute;font-size:11px;color:var(--text2);transform:translateX(-50%);top:50%;margin-top:-7px;white-space:nowrap}
+
+/* rows */
+.g-row{display:flex;height:var(--row-h);border-bottom:1px solid var(--border)}
+.g-ch{position:sticky;left:0;z-index:20;background:var(--bg2);border-right:1px solid var(--border);width:var(--ch-w);min-width:var(--ch-w);display:flex;align-items:center;padding:0 8px;gap:7px;cursor:pointer}
+.g-ch:hover{background:var(--bg3)}
+.ch-ico{width:26px;height:26px;border-radius:4px;object-fit:contain;background:var(--bg3);flex-shrink:0}
+.ch-ico-ph{width:26px;height:26px;border-radius:4px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text2);flex-shrink:0;text-align:center;line-height:1.1}
+.ch-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ch-fav{color:var(--yellow);font-size:11px;flex-shrink:0}
+.g-progs{position:relative}
+
+/* program blocks */
+.pb{position:absolute;top:2px;height:calc(var(--row-h) - 4px);border-radius:5px;padding:4px 7px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;justify-content:center;border:1px solid transparent;transition:filter .12s}
+.pb:hover{filter:brightness(1.25);border-color:rgba(255,255,255,.25);z-index:10}
+.pb.now-on{border-color:var(--accent2) !important}
+.pb.sched{border-color:var(--green) !important;box-shadow:0 0 0 1px rgba(63,185,80,.3)}
+.pb-title{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-time{font-size:10px;opacity:.65}
+.pb.tiny .pb-title{font-size:10px}
+.pb.nano .pb-time{display:none}
+
+/* now-line */
+.now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:25;pointer-events:none}
+.now-line::before{content:'';position:absolute;top:0;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
+
+/* program block color palette */
+.c0{background:#1c3a6e}.c1{background:#2d1a52}.c2{background:#1a3a2b}.c3{background:#3a2a0e}
+.c4{background:#0e2a2a}.c5{background:#3a1228}.c6{background:#2a1010}.c7{background:#0a2a3a}
+.c8{background:#2a2a10}.c9{background:#1a1a3a}
+
+/* ═══════════════════════════════════════
+   RECOMMENDATIONS
+═══════════════════════════════════════ */
+.r-chips{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;gap:7px;flex-shrink:0;flex-wrap:wrap}
+.chip{padding:4px 12px;border-radius:14px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s}
+.chip:hover{border-color:var(--text);color:var(--text)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.r-list{flex:1;overflow-y:auto;padding:14px}
+.r-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s}
+.r-item:hover{border-color:var(--accent)}
+.r-score{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+.r-info{flex:1;min-width:0}
+.r-title{font-size:14px;font-weight:600;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-meta{font-size:12px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap}
+.r-why{font-size:11px;color:var(--text2);margin-top:3px;font-style:italic}
+
+/* ═══════════════════════════════════════
+   CHANNELS
+═══════════════════════════════════════ */
+.ch-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0}
+.ch-list{flex:1;overflow-y:auto}
+.ch-row{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);gap:10px;transition:background .1s}
+.ch-row:hover{background:var(--bg2)}
+.ch-row-name{flex:1;font-size:13px;font-weight:500}
+.ch-row-id{font-size:11px;color:var(--text2);width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-grp{display:flex;gap:5px}
+.tg{padding:3px 9px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .15s}
+.tg:hover{border-color:var(--text2);color:var(--text)}
+.tg.fav{background:rgba(210,153,34,.15);border-color:var(--yellow);color:var(--yellow)}
+.tg.movie{background:rgba(56,139,253,.15);border-color:var(--accent2);color:var(--accent2)}
+.tg.foreign{background:rgba(248,81,73,.15);border-color:var(--red);color:var(--red)}
+
+/* ═══════════════════════════════════════
+   SCHEDULE
+═══════════════════════════════════════ */
+.sc-list{flex:1;overflow-y:auto;padding:14px}
+.sc-item{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:8px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:14px}
+.sc-info{flex:1;min-width:0}
+.sc-title{font-size:14px;font-weight:600;margin-bottom:3px}
+.sc-meta{font-size:12px;color:var(--text2)}
+.prog-bar-wrap{background:var(--bg3);border-radius:3px;height:4px;margin-top:6px;overflow:hidden}
+.prog-bar-fill{height:100%;background:var(--green);transition:width .5s}
+
+/* ═══════════════════════════════════════
+   MODAL
+═══════════════════════════════════════ */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;align-items:center;justify-content:center}
+.overlay.on{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:22px;width:480px;max-width:92vw;max-height:82vh;overflow-y:auto}
+.m-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.m-ch{font-size:13px;color:var(--accent2);margin-bottom:4px}
+.m-time{font-size:12px;color:var(--text2);margin-bottom:14px}
+.m-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.tag{padding:2px 9px;border-radius:10px;font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.tag.movie{border-color:var(--accent);color:var(--accent2)}
+.m-desc{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:16px}
+.m-actions{display:flex;gap:9px;justify-content:flex-end}
+
+/* badges */
+.badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle}
+.b-now{background:var(--red);color:#fff}
+.b-soon{background:var(--yellow);color:#000}
+.b-hd{background:var(--accent);color:#fff}
+
+/* ── List view ── */
+#lv-table td{padding:6px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+#lv-table tr:hover td{background:var(--bg2)}
+#lv-table tr.now-row td{background:rgba(56,139,253,.08)}
+.lv-play{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;padding:2px 8px;font-size:13px}
+.lv-play:hover{color:var(--green);border-color:var(--green)}
+.lv-rec{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;padding:2px 6px;font-size:11px;font-weight:600}
+.lv-rec:hover{color:var(--red);border-color:var(--red)}
+.lv-rec.active{color:var(--red);border-color:var(--red)}
+.prog-mini{background:var(--bg3);border-radius:3px;height:5px;width:60px;overflow:hidden;display:inline-block;vertical-align:middle}
+.prog-mini-fill{height:100%;background:var(--green)}
+.lv-title{cursor:pointer}
+.lv-title:hover{color:var(--accent2);text-decoration:underline}
+.btn.sm.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* toast */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:9999;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text2)}
+
+/* ═══════════════════════════════════════
+   CONVERSIONS
+═══════════════════════════════════════ */
+.cv-layout{flex:1;overflow:hidden;display:flex;gap:0}
+.cv-main{flex:1;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.cv-sidebar{width:320px;min-width:280px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.cv-toolbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.cv-grid-wrap{flex:1;overflow-y:auto;padding:14px}
+.cv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.cv-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 13px;display:flex;flex-direction:column;gap:8px;cursor:default;transition:border-color .15s}
+.cv-card:hover{border-color:var(--accent)}
+.cv-card-title{font-size:13px;font-weight:600;line-height:1.35;word-break:break-word}
+.cv-card-size{font-size:11px;color:var(--text2)}
+.cv-card-path{font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7}
+.cv-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:4px}
+.cv-card.is-queued{border-color:rgba(56,139,253,.4)}
+.cv-card.is-queued .cv-card-title{color:var(--text2)}
+.cv-card.in-plex{border-color:rgba(63,185,80,.3)}
+.cv-card.in-plex .cv-card-title{color:var(--text2)}
+.cv-section{border-bottom:1px solid var(--border)}
+.cv-section-hdr{padding:9px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;background:var(--bg3)}
+.cv-section-hdr span{flex:1}
+.cv-row{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--border);font-size:12px}
+.cv-row:last-child{border-bottom:none}
+.cv-row:hover{background:var(--bg3)}
+.cv-row-meta{display:flex;flex-direction:column;flex:1;min-width:0;gap:2px}
+.cv-row-title{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.cv-row-path{font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-status{font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.cv-status.queued{background:rgba(56,139,253,.15);color:var(--accent2)}
+.cv-status.running{background:rgba(210,153,34,.2);color:var(--yellow)}
+.cv-status.done{background:rgba(63,185,80,.15);color:var(--green)}
+.cv-status.failed{background:rgba(248,81,73,.15);color:var(--red)}
+.cv-status.cleared{background:var(--bg3);color:var(--text2)}
+.cv-status.deferred{background:rgba(139,148,158,.15);color:var(--text2)}
+.cv-active-pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--yellow);margin-right:5px;animation:pulse 1.2s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cv-empty{padding:24px;text-align:center;font-size:12px;color:var(--text2)}
+#cv-status-bar{font-size:12px;color:var(--text2)}
+</style>
+</head>
+<body>
+
+<!-- ═══════ HEADER ═══════ -->
+<div class="hdr">
+  <div class="logo">📺 EPG Manager <span>Web</span> <span style="font-size:10px;font-weight:400;color:var(--text2);margin-left:6px">v20260716</span></div>
+  <div class="hdr-r">
+    <div id="clock"></div>
+    <button class="btn" id="btn-refresh" title="Reload from localhost:5000">🔄 Refresh</button>
+    <label class="btn" for="file-in" title="Load XMLTV file">📂 XMLTV</label>
+    <input type="file" id="file-in" accept=".xml,.xmltv" style="display:none">
+    <button class="btn" id="btn-sample">Try Demo</button>
+  </div>
+</div>
+
+<!-- ═══════ TABS ═══════ -->
+<div class="tabs">
+  <div class="tab on" data-tab="guide">📺 Guide</div>
+  <div class="tab" data-tab="reco">⭐ Recommendations</div>
+  <div class="tab" data-tab="channels">📡 Channels</div>
+  <div class="tab" data-tab="schedule">🎬 Schedule</div>
+  <div class="tab" data-tab="convert">🔄 Conversions</div>
+</div>
+
+<!-- ═══════ CONTENT ═══════ -->
+<div class="content">
+
+  <!-- GUIDE -->
+  <div class="panel on" id="panel-guide">
+    <div id="g-empty" class="empty">
+      <div class="empty-icon" id="empty-icon">📡</div>
+      <h2 id="empty-title">Connecting to server…</h2>
+      <p id="empty-desc">Trying localhost:5000 automatically.</p>
+      <div id="empty-retry" style="display:none;margin-top:12px">
+        <button class="btn" id="btn-retry-import" onclick="retryGuideImport()" style="font-size:13px;padding:6px 18px">🔄 Retry Guide Import</button>
+        <span id="retry-import-status" style="margin-left:10px;font-size:12px;color:var(--text2)"></span>
+      </div>
+      <div id="empty-manual" style="display:none;width:100%;max-width:480px">
+        <div class="dropzone" id="dropzone">
+          <div style="font-size:28px;margin-bottom:8px">📂</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">Drop XMLTV file here</div>
+          <div style="font-size:12px;margin-top:4px">or click to browse</div>
+        </div>
+      </div>
+    </div>
+    <div id="g-main" style="display:none;flex:1;overflow:hidden;flex-direction:column">
+      <div class="g-toolbar">
+        <!-- list view controls -->
+        <div id="list-controls" style="display:flex;align-items:center;gap:10px;flex:1">
+          <select class="fi" id="list-filter" style="width:150px">
+            <option value="fav_movies">Fav Movies</option>
+            <option value="favorites">Favorites</option>
+            <option value="movies">All Movies</option>
+            <option value="all">All Channels</option>
+          </select>
+          <input class="fi" id="list-search" placeholder="🔍 Search titles…" style="width:200px">
+          <span id="list-count" style="font-size:12px;color:var(--text2)"></span>
+        </div>
+        <!-- grid view controls -->
+        <div id="grid-controls" style="display:none;align-items:center;gap:10px;flex:1">
+          <button class="btn sm" id="btn-prev">◀ -2h</button>
+          <button class="btn sm" id="btn-now">⬤ Now</button>
+          <button class="btn sm" id="btn-next">+2h ▶</button>
+          <div class="g-navtime" id="g-navtime"></div>
+          <input class="fi" id="g-filter" placeholder="🔍 Filter channels…" style="width:185px">
+          <button class="btn sm" id="btn-fav-only" title="Show favorite channels only">★ Favs Only</button>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn sm on" id="btn-view-list" title="List view">☰ List</button>
+          <button class="btn sm" id="btn-view-grid" title="Grid view">▦ Grid</button>
+        </div>
+      </div>
+      <!-- LIST VIEW -->
+      <div id="lv-wrap" style="flex:1;overflow-y:auto">
+        <table id="lv-table" style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:2px solid var(--border)">
+              <th style="width:36px"></th>
+              <th style="width:44px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Ch</th>
+              <th style="width:120px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Channel</th>
+              <th style="padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Title</th>
+              <th style="width:60px;padding:8px 6px;text-align:center;color:var(--text2);font-weight:600">Plex</th>
+              <th style="width:130px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Start</th>
+              <th style="width:130px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">End</th>
+              <th style="width:110px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Until</th>
+              <th style="width:80px;padding:8px 6px;text-align:left;color:var(--text2);font-weight:600">Progress</th>
+              <th style="width:70px"></th>
+            </tr>
+          </thead>
+          <tbody id="lv-body"></tbody>
+        </table>
+      </div>
+      <!-- GRID VIEW -->
+      <div id="g-scroll" style="display:none;flex:1;overflow:auto"></div>
+    </div>
+    <div class="sbar" id="g-sbar" style="display:none">
+      Channels: <b id="s-ch">0</b>
+      Programs: <b id="s-pr">0</b>
+      Window: <b id="s-win">4h</b>
+    </div>
+  </div>
+
+  <!-- RECOMMENDATIONS -->
+  <div class="panel" id="panel-reco">
+    <div class="r-chips">
+      <button class="chip on" data-rf="all">All</button>
+      <button class="chip" data-rf="soon">Starting ≤30min</button>
+      <button class="chip" data-rf="movie">Movies</button>
+      <button class="chip" data-rf="prime">Prime Time</button>
+      <button class="chip" data-rf="fav">Fav Channels</button>
+      <button class="chip" data-rf="nofgn">Exclude Foreign</button>
+    </div>
+    <div class="r-list" id="r-list">
+      <div class="empty"><div class="empty-icon">⭐</div><h2>No data</h2><p>Load an XMLTV file first.</p></div>
+    </div>
+  </div>
+
+  <!-- CHANNELS -->
+  <div class="panel" id="panel-channels">
+    <div class="ch-toolbar">
+      <input class="fi" id="ch-fi" placeholder="🔍 Search channels…" style="width:230px">
+      <button class="btn sm" id="btn-clrprefs">Clear Prefs</button>
+      <div style="margin-left:auto;font-size:11px;color:var(--text2)">★ Fav &nbsp;|&nbsp; 🎬 Movie Channel &nbsp;|&nbsp; 🌍 Foreign</div>
+    </div>
+    <div class="ch-list" id="ch-list">
+      <div class="empty"><div class="empty-icon">📡</div><h2>No channels</h2><p>Load an XMLTV file first.</p></div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="panel" id="panel-schedule">
+    <div class="sc-list" id="sc-list">
+      <div class="empty"><div class="empty-icon">🎬</div><h2>Schedule Empty</h2><p>Add programs from the Guide or Recommendations tab.</p></div>
+    </div>
+  </div>
+
+  <!-- CONVERSIONS -->
+  <div class="panel" id="panel-convert">
+    <!-- toolbar above both columns -->
+    <div class="cv-toolbar">
+      <button class="btn sm pri" id="cv-btn-scan">🔍 Scan for .ts Files</button>
+      <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="cv-show-all" checked> Show all (incl. Plex)
+      </label>
+      <input class="fi" id="cv-search" placeholder="Search titles…" style="width:200px">
+      <select class="fi" id="cv-sort" style="width:130px">
+        <option value="alpha">A → Z</option>
+        <option value="alpha-desc">Z → A</option>
+        <option value="size-desc">Largest first</option>
+        <option value="size-asc">Smallest first</option>
+        <option value="date-desc">Newest first</option>
+      </select>
+      <span id="cv-count" style="font-size:12px;color:var(--text2)"></span>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <button class="btn sm ok" id="cv-btn-queue-all" style="display:none">+ Queue All</button>
+        <button class="btn sm" id="cv-btn-pause">⏸ Pause</button>
+        <button class="btn sm" id="cv-btn-refresh">↺</button>
+        <div id="cv-status-bar"></div>
+      </div>
+    </div>
+    <div class="cv-layout">
+      <!-- LEFT: movie grid -->
+      <div class="cv-main">
+        <div class="cv-grid-wrap">
+          <div id="cv-grid" class="cv-grid">
+            <div class="cv-empty" style="grid-column:1/-1">Click <b>Scan for .ts Files</b> to find movies ready to convert.</div>
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: sidebar -->
+      <div class="cv-sidebar">
+        <!-- Active -->
+        <div class="cv-section" id="cv-active-section" style="display:none">
+          <div class="cv-section-hdr"><span>🔄 Converting</span></div>
+          <div id="cv-active-body"></div>
+        </div>
+        <!-- Queue -->
+        <div class="cv-section">
+          <div class="cv-section-hdr">
+            <span>Queue</span>
+            <button class="btn sm" id="cv-btn-clear" style="font-size:10px">Clear</button>
+          </div>
+          <div id="cv-queue-body"><div class="cv-empty">Empty</div></div>
+        </div>
+        <!-- History -->
+        <div class="cv-section">
+          <div class="cv-section-hdr"><span>Recent</span></div>
+          <div id="cv-history-body"><div class="cv-empty">No history yet</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════ MODAL ═══════ -->
+<div class="overlay" id="modal">
+  <div class="modal" style="width:560px">
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:8px">
+      <img id="m-poster" src="" alt="" style="width:90px;border-radius:6px;display:none;flex-shrink:0;object-fit:cover">
+      <div style="flex:1;min-width:0">
+        <div class="m-title" id="m-title"></div>
+        <div class="m-ch" id="m-ch"></div>
+        <div class="m-time" id="m-time"></div>
+        <div id="m-omdb-meta" style="margin-top:5px;font-size:12px;color:var(--text2);line-height:1.7"></div>
+      </div>
+      <button class="btn sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="m-tags" id="m-tags"></div>
+    <div class="m-desc" id="m-desc"></div>
+    <div id="m-plot" style="font-size:13px;color:var(--text2);margin:8px 0 0;line-height:1.5"></div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn" id="m-play-btn" style="display:none">▶ Play in VLC</button>
+      <button class="btn danger" id="m-rec-btn" style="display:none">⏺ Record</button>
+      <button class="btn ok" id="m-sched-btn">+ Watchlist</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let channels  = [];   // [{id, name, icon}]
+let programs  = [];   // [{channel, title, desc, start, stop, cats, rating}]
+let chPrefs   = {};   // {id: {fav, movie, foreign}}
+let schedule  = [];   // [{...prog, start/stop as ISO string}]
+let winStart  = null; // Date – guide window
+const MPX     = 3;    // pixels per minute
+const CH_W    = 180;  // channel column width (matches --ch-w)
+function calcWinH() {
+  const available = window.innerWidth - CH_W - 20; // 20px scrollbar/padding
+  const mins = Math.floor(available / MPX / 30) * 30; // round to 30-min boundary
+  return Math.max(2, mins / 60);
+}
+let recoFilter = 'all';
+let modalProg  = null;
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  loadPrefs();
+  tickClock();
+  setInterval(tickClock, 1000);
+  setInterval(updateNowLine, 30000);
+  initTabs();
+  initFileInput();
+  initDrop();
+  initGuideNav();
+  initViewToggle();
+  setView('list');
+  document.getElementById('g-filter').addEventListener('input', renderGuide);
+  document.getElementById('btn-fav-only').addEventListener('click', function(){
+    this.classList.toggle('on');
+    renderGuide();
+  });
+  document.getElementById('ch-fi').addEventListener('input', renderChannels);
+  document.querySelectorAll('[data-rf]').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('[data-rf]').forEach(x => x.classList.remove('on'));
+    c.classList.add('on');
+    recoFilter = c.dataset.rf;
+    renderReco();
+  }));
+  document.getElementById('btn-clrprefs').addEventListener('click', () => {
+    if (!confirm('Clear all channel preferences?')) return;
+    chPrefs = {};
+    savePrefs();
+    renderChannels();
+    renderGuide();
+  });
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // Plex badge tooltip
+  const plexTip = document.createElement('div');
+  plexTip.id = 'plex-tip';
+  plexTip.style.cssText = 'display:none;position:fixed;z-index:200;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 13px;font-size:12px;line-height:1.6;max-width:420px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+  document.body.appendChild(plexTip);
+
+  document.addEventListener('mouseover', e => {
+    const badge = e.target.closest('.plex-badge');
+    if (!badge) return;
+    const path = badge.dataset.plexPath || '';
+    const size = badge.dataset.plexSize ? badge.dataset.plexSize + ' GB' : '';
+    const res  = badge.dataset.plexRes || '';
+    const kbps = badge.dataset.plexKbps ? Math.round(badge.dataset.plexKbps / 1000 * 10) / 10 + ' Mbps' : '';
+    const file = path.split('/').pop();
+    plexTip.innerHTML =
+      `<div style="color:var(--green);font-weight:600;margin-bottom:4px">📀 In Plex</div>` +
+      `<div style="color:var(--text2);word-break:break-all;margin-bottom:5px">${path}</div>` +
+      [size, res, kbps].filter(Boolean).map(v => `<span style="background:var(--bg3);border-radius:4px;padding:1px 6px;margin-right:5px">${v}</span>`).join('');
+    const r = badge.getBoundingClientRect();
+    plexTip.style.display = 'block';
+    const tipW = 420, tipH = 90;
+    plexTip.style.left = Math.min(r.left, window.innerWidth - tipW - 10) + 'px';
+    plexTip.style.top  = (r.bottom + 6 + tipH > window.innerHeight ? r.top - tipH - 6 : r.bottom + 6) + 'px';
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('.plex-badge')) plexTip.style.display = 'none';
+  });
+
+  winStart = roundHour(new Date());
+
+  // 1. Try restore from session (instant)
+  let restoredFromSession = false;
+  try {
+    const saved = sessionStorage.getItem('epg');
+    if (saved) {
+      const d = JSON.parse(saved);
+      channels = d.c;
+      programs = d.p.map(p => ({...p, start: new Date(p.start), stop: new Date(p.stop)}));
+      restoredFromSession = true;
+      dataLoaded();
+    }
+  } catch(e) {}
+
+  // 2. Always try server fetch (gets fresh data even if session exists)
+  fetchFromServer(restoredFromSession);
+});
+
+function tickClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    n.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function roundHour(d) {
+  const r = new Date(d); r.setMinutes(0,0,0); return r;
+}
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function initTabs() {
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab,.panel').forEach(x => x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('on');
+    if (t.dataset.tab === 'reco')     renderReco();
+    if (t.dataset.tab === 'channels') renderChannels();
+    if (t.dataset.tab === 'schedule') renderSchedule();
+    if (t.dataset.tab === 'convert')  { cvRefresh(); if (!cvCandidates.length) cvScan(); cvStartPolling(); }
+    else cvStopPolling();
+  }));
+}
+
+// ══════════════════════════════════════════════
+// FILE INPUT
+// ══════════════════════════════════════════════
+function initFileInput() {
+  const inp = document.getElementById('file-in');
+  inp.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+  document.getElementById('dropzone').addEventListener('click', () => inp.click());
+  document.getElementById('btn-sample').addEventListener('click', loadDemo);
+  document.getElementById('btn-refresh').addEventListener('click', () => {
+    sessionStorage.removeItem('epg');
+    fetchFromServer(false);
+  });
+}
+
+function initDrop() {
+  document.body.addEventListener('dragover', e => {
+    e.preventDefault();
+    document.getElementById('dropzone')?.classList.add('over');
+  });
+  document.body.addEventListener('dragleave', () => {
+    document.getElementById('dropzone')?.classList.remove('over');
+  });
+  document.body.addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('dropzone')?.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+}
+
+function readFile(f) {
+  const r = new FileReader();
+  r.onload = e => parseXMLTV(e.target.result);
+  r.readAsText(f);
+}
+
+// ══════════════════════════════════════════════
+// XMLTV PARSER
+// ══════════════════════════════════════════════
+function parseXMLTV(txt) {
+  try {
+    const doc = new DOMParser().parseFromString(txt, 'text/xml');
+    if (doc.querySelector('parsererror')) { alert('XML parse error.'); return; }
+
+    channels = [];
+    doc.querySelectorAll('channel').forEach(el => {
+      channels.push({
+        id:   el.getAttribute('id'),
+        name: el.querySelector('display-name')?.textContent || el.getAttribute('id'),
+        icon: el.querySelector('icon')?.getAttribute('src') || null
+      });
+    });
+
+    programs = [];
+    doc.querySelectorAll('programme').forEach(el => {
+      const start = parseDate(el.getAttribute('start'));
+      const stop  = parseDate(el.getAttribute('stop'));
+      if (!start || !stop) return;
+      programs.push({
+        channel: el.getAttribute('channel'),
+        title:   el.querySelector('title')?.textContent || '(No title)',
+        desc:    el.querySelector('desc')?.textContent  || '',
+        start, stop,
+        cats:    Array.from(el.querySelectorAll('category')).map(c => c.textContent),
+        rating:  el.querySelector('rating value')?.textContent || '',
+        icon:    el.querySelector('icon')?.getAttribute('src') || null
+      });
+    });
+
+    programs.sort((a,b) => a.start - b.start);
+
+    // Persist to session
+    try {
+      sessionStorage.setItem('epg', JSON.stringify({
+        c: channels,
+        p: programs.map(p => ({...p, start: p.start.toISOString(), stop: p.stop.toISOString()}))
+      }));
+    } catch(e) {}
+
+    dataLoaded();
+  } catch(e) {
+    alert('Error loading file: ' + e.message);
+    console.error(e);
+  }
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?/);
+  if (!m) return null;
+  const [,yr,mo,dy,hr,mn,sc,tz] = m;
+  if (tz) {
+    const sg = tz[0]==='+' ? 1 : -1, tzH=+tz.slice(1,3), tzM=+tz.slice(3,5);
+    return new Date(Date.UTC(+yr,+mo-1,+dy,+hr,+mn,+sc) - sg*(tzH*60+tzM)*60000);
+  }
+  return new Date(+yr, +mo-1, +dy, +hr, +mn, +sc);
+}
+
+function dataLoaded() {
+  winStart = roundHour(new Date());
+  renderGuide();
+  renderReco();
+  renderChannels();
+  renderSchedule();
+  document.getElementById('g-empty').style.display   = 'none';
+  const gm = document.getElementById('g-main');
+  gm.style.display = 'flex'; gm.style.flexDirection = 'column';
+  document.getElementById('g-sbar').style.display = 'flex';
+  document.getElementById('s-ch').textContent = channels.length;
+}
+
+// ══════════════════════════════════════════════
+// GUIDE
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// VIEW TOGGLE + LIST VIEW
+// ══════════════════════════════════════════════
+let currentView = 'list'; // 'list' or 'grid'
+let listItems = [];        // raw items from server for list view
+
+function initViewToggle() {
+  document.getElementById('btn-view-list').addEventListener('click', () => setView('list'));
+  document.getElementById('btn-view-grid').addEventListener('click', () => setView('grid'));
+  document.getElementById('list-filter').addEventListener('change', fetchListView);
+  document.getElementById('list-search').addEventListener('input', renderListView);
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-view-list').classList.toggle('on', v==='list');
+  document.getElementById('btn-view-grid').classList.toggle('on', v==='grid');
+  document.getElementById('list-controls').style.display  = v==='list' ? 'flex' : 'none';
+  document.getElementById('grid-controls').style.display  = v==='grid' ? 'flex' : 'none';
+  document.getElementById('lv-wrap').style.display        = v==='list' ? 'block' : 'none';
+  document.getElementById('g-scroll').style.display       = v==='grid' ? 'block' : 'none';
+  if (v==='list' && !listItems.length) fetchListView();
+  if (v==='grid') renderGuide();
+}
+
+async function fetchListView() {
+  const filter = document.getElementById('list-filter').value;
+  document.getElementById('list-count').textContent = 'Loading…';
+  try {
+    const res = await fetch(`${SERVER}/guide?filter=${filter}&limit=500`);
+    const data = await res.json();
+    listItems = data.items || [];
+    renderListView();
+  } catch(e) {
+    document.getElementById('list-count').textContent = 'Error: ' + e.message;
+  }
+}
+
+function renderListView() {
+  const search = document.getElementById('list-search').value.toLowerCase();
+  const now = new Date();
+  let rows = listItems;
+  if (search) rows = rows.filter(r => r.title?.toLowerCase().includes(search) || r.nickname?.toLowerCase().includes(search));
+
+  document.getElementById('list-count').textContent = rows.length + ' programs';
+  const tbody = document.getElementById('lv-body');
+  tbody.innerHTML = '';
+
+  rows.forEach(r => {
+    const start = new Date(r.start_time.replace(' ','T'));
+    const end   = new Date(r.end_time.replace(' ','T'));
+    const onNow = start <= now && end > now;
+    const isFuture = start > now;
+    const minsIn = onNow ? (now - start) / 60000 : 0;
+    const tooLateToRecord = onNow && minsIn > 2;
+    const prog  = r.progress || 0;
+
+    const tr = document.createElement('tr');
+    if (onNow) tr.className = 'now-row';
+
+    const streamId = r.stream_id;
+    const pObj = {
+      channel: r.channel, title: r.title, desc: '', start, stop: end,
+      cats: r.program_type==='MV'?['Movie']:[], rating:'', streamId, progress: prog,
+      normalized_title: r.normalized_title||''
+    };
+    const chObj = {id: r.channel, name: r.nickname, streamId};
+
+    tr.innerHTML = `
+      <td>${!isFuture ? '<button class="lv-play" title="Play in VLC">▶</button>' : ''}</td>
+      <td style="color:var(--text2)">${esc(r.my_channel||'')}</td>
+      <td style="font-weight:500">${esc(r.nickname||'')}</td>
+      <td><span class="lv-title">${esc(r.title||'')}</span>${onNow?'<span class="badge b-now" style="margin-left:8px">NOW</span>':''}</td>
+      <td style="text-align:center">${r.in_plex?`<span class="plex-badge" style="font-size:16px;cursor:default" data-plex-path="${esc(r.plex_path||'')}" data-plex-size="${r.plex_size_gb||''}" data-plex-res="${esc(r.plex_resolution||'')}" data-plex-kbps="${r.plex_bitrate_kbps||''}">📀</span>`:''}</td>
+      <td style="color:var(--text2);white-space:nowrap">${fmtDT(start)}</td>
+      <td style="color:var(--text2);white-space:nowrap">${fmtDT(end)}</td>
+      <td style="color:var(--text2)">${esc(r.until_start||'')}</td>
+      <td>
+        <div class="prog-mini"><div class="prog-mini-fill" style="width:${prog}%"></div></div>
+        <span style="font-size:10px;color:var(--text2);margin-left:4px">${prog}%</span>
+      </td>
+      <td>${!tooLateToRecord ? '<button class="lv-rec ' + (onNow?'active':'') + '" title="Record">⏺ REC</button>' : '<span style="font-size:10px;color:var(--text2)">too late</span>'}</td>
+    `;
+
+    if (!isFuture) {
+      tr.querySelector('.lv-play').addEventListener('click', e => {
+        e.stopPropagation();
+        if (streamId) fetch(`${SERVER}/play/${streamId}?title=${encodeURIComponent(r.title||'')}`);
+      });
+    }
+    if (!tooLateToRecord) {
+      tr.querySelector('.lv-rec').addEventListener('click', e => {
+        e.stopPropagation();
+        if (streamId) {
+          const url = `http://primestreams.tv:826/live/jFYSJ6UprmRRO/Hq0Nl2sZqRGSR9yo/${streamId}.ts`;
+          postRecord(pObj, url, e.currentTarget);
+        }
+      });
+    }
+    tr.querySelector('.lv-title').addEventListener('click', () => openModal(pObj, chObj));
+    tbody.appendChild(tr);
+  });
+}
+
+function initGuideNav() {
+  document.getElementById('btn-prev').addEventListener('click', () => { winStart = new Date(winStart.getTime()-2*3600000); renderGuide(); });
+  document.getElementById('btn-next').addEventListener('click', () => { winStart = new Date(winStart.getTime()+2*3600000); renderGuide(); });
+  document.getElementById('btn-now').addEventListener('click',  () => {
+    winStart = roundHour(new Date()); renderGuide();
+    setTimeout(scrollToNow, 80);
+  });
+  // Re-render on resize so guide width tracks viewport
+  let _resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      const activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab && activeTab.dataset.tab === 'guide') renderGuide();
+    }, 200);
+  });
+}
+
+function fmt(d) {
+  let h = d.getHours(), m = d.getMinutes(), ap = h>=12?'PM':'AM';
+  h = h%12||12;
+  return h+':'+(m<10?'0':'')+m+' '+ap;
+}
+function fmtDT(d) {
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' '+fmt(d);
+}
+function fmtDay(d) {
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+}
+function totalWPx() { return calcWinH()*60*MPX; }
+
+function renderGuide() {
+  if (!channels.length) return;
+
+  const WIN_H = calcWinH();
+  const winEnd = new Date(winStart.getTime() + WIN_H*3600000);
+  const totalW = totalWPx();
+  const filterTxt = document.getElementById('g-filter').value.toLowerCase();
+  const favOnly = document.getElementById('btn-fav-only').classList.contains('on');
+
+  // nav label
+  document.getElementById('g-navtime').textContent =
+    fmtDay(winStart)+' '+fmt(winStart)+' – '+fmt(winEnd);
+
+  // filter + sort channels
+  let vis = channels.filter(ch => {
+    if (favOnly && !chPrefs[ch.id]?.fav) return false;
+    return !filterTxt || ch.name.toLowerCase().includes(filterTxt) || ch.id.toLowerCase().includes(filterTxt);
+  });
+  vis.sort((a,b) => {
+    const af = chPrefs[a.id]?.fav?1:0, bf = chPrefs[b.id]?.fav?1:0;
+    if (bf!==af) return bf-af;
+    // Sort by my_channel number when available, else push to end
+    const an = a.myChannel != null ? a.myChannel : 9999;
+    const bn = b.myChannel != null ? b.myChannel : 9999;
+    if (an !== bn) return an - bn;
+    return a.name.localeCompare(b.name);
+  });
+
+  document.getElementById('s-ch').textContent = vis.length;
+
+  const scroll = document.getElementById('g-scroll');
+  scroll.innerHTML = '';
+
+  // sticky time header row
+  const head = el('div','g-head');
+  const corner = el('div','g-corner'); corner.textContent = channels.length+' ch';
+  const ticks = el('div','g-ticks'); ticks.style.minWidth = totalW+'px';
+
+  for (let m=0; m<=WIN_H*60; m+=30) {
+    const d = new Date(winStart.getTime()+m*60000);
+    const lbl = el('div','g-tick');
+    lbl.style.left = (m*MPX)+'px';
+    lbl.textContent = fmt(d);
+    ticks.appendChild(lbl);
+  }
+  head.appendChild(corner); head.appendChild(ticks);
+  scroll.appendChild(head);
+
+  // now-line container
+  const wrapper = el('div');
+  wrapper.style.position = 'relative';
+
+  const nowLine = el('div','now-line');
+  nowLine.id = 'now-line';
+  nowLine.style.display = 'none';
+  wrapper.appendChild(nowLine);
+
+  let progCount = 0;
+
+  vis.forEach((ch, idx) => {
+    const row = el('div','g-row');
+
+    // channel cell
+    const chCell = el('div','g-ch');
+    chCell.title = ch.id;
+    chCell.addEventListener('click', () => {
+      // clicking channel header toggles fav
+      if (!chPrefs[ch.id]) chPrefs[ch.id] = {};
+      chPrefs[ch.id].fav = !chPrefs[ch.id].fav;
+      savePrefs();
+      renderGuide();
+    });
+
+    if (ch.icon) {
+      const img = document.createElement('img');
+      img.className = 'ch-ico'; img.src = ch.icon;
+      img.onerror = () => { img.replaceWith(makePH(ch.name)); };
+      chCell.appendChild(img);
+    } else {
+      chCell.appendChild(makePH(ch.name));
+    }
+    const nm = el('div','ch-name'); nm.textContent = ch.name; chCell.appendChild(nm);
+    if (chPrefs[ch.id]?.fav) {
+      const star = el('span','ch-fav'); star.textContent='★'; chCell.appendChild(star);
+    }
+    row.appendChild(chCell);
+
+    // programs area
+    const pa = el('div','g-progs');
+    pa.style.minWidth = totalW+'px';
+    pa.style.height   = 'var(--row-h)';
+
+    const colorCls = 'c'+(idx%10);
+    const chProgs = programs.filter(p =>
+      p.channel===ch.id && p.stop>winStart && p.start<winEnd
+    );
+
+    chProgs.forEach(p => {
+      const s = Math.max(p.start.getTime(), winStart.getTime());
+      const e = Math.min(p.stop.getTime(),  winEnd.getTime());
+      const leftMin  = (s - winStart.getTime())/60000;
+      const widthMin = (e - s)/60000;
+      if (widthMin<=0) return;
+
+      const left  = leftMin*MPX;
+      const width = widthMin*MPX;
+      const block = el('div','pb '+colorCls);
+      block.style.left  = (left+1)+'px';
+      block.style.width = (width-2)+'px';
+      if (width<40) block.classList.add('tiny');
+      if (width<80) block.classList.add('nano');
+
+      const now = new Date();
+      if (p.start<=now && p.stop>now) block.classList.add('now-on');
+      if (isScheduled(p)) block.classList.add('sched');
+
+      const t = el('div','pb-title'); t.textContent = p.title; block.appendChild(t);
+      if (width>=80) {
+        const tm = el('div','pb-time'); tm.textContent = fmt(p.start)+' – '+fmt(p.stop); block.appendChild(tm);
+      }
+      block.addEventListener('click', () => openModal(p, ch));
+      pa.appendChild(block);
+      progCount++;
+    });
+
+    if (!chProgs.length) {
+      const ph = el('div','pb');
+      ph.style.left='1px'; ph.style.width=(totalW-2)+'px';
+      ph.style.background='rgba(255,255,255,.03)';
+      const t=el('div','pb-title'); t.textContent='No data'; t.style.color='var(--text2)'; ph.appendChild(t);
+      pa.appendChild(ph);
+    }
+
+    row.appendChild(pa);
+    wrapper.appendChild(row);
+  });
+
+  scroll.appendChild(wrapper);
+  document.getElementById('s-pr').textContent = progCount;
+  document.getElementById('s-win').textContent = WIN_H.toFixed(WIN_H%1===0?0:1)+'h';
+
+  updateNowLine();
+}
+
+function updateNowLine() {
+  const nl = document.getElementById('now-line');
+  if (!nl || !winStart) return;
+  const now = new Date();
+  const winEnd = new Date(winStart.getTime()+calcWinH()*3600000);
+  if (now>=winStart && now<=winEnd) {
+    nl.style.left = ((now-winStart)/60000*MPX)+'px';
+    nl.style.display = 'block';
+  } else {
+    nl.style.display = 'none';
+  }
+}
+
+function scrollToNow() {
+  const nl = document.getElementById('now-line');
+  if (!nl) return;
+  const left = parseInt(nl.style.left)||0;
+  document.getElementById('g-scroll').scrollLeft = Math.max(0, left-160);
+}
+
+function makePH(name) {
+  const d = el('div','ch-ico-ph');
+  d.textContent = name.replace(/[^A-Za-z0-9]/g,'').substring(0,4);
+  return d;
+}
+
+function el(tag, cls='') {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+
+// ══════════════════════════════════════════════
+// RECOMMENDATIONS (mirrors VB.NET scoring logic)
+// ══════════════════════════════════════════════
+const FAV_CH_KW  = ['hbo','showtime','max','starz','amc','epix','mgm','cinemax','tmc','fx'];
+const FAV_PROG   = ['premiere','finale','new episode','movie','special'];
+
+function normalizeTitle(t) {
+  return t.toLowerCase()
+    .replace(/\(\d{4}\)/g,'')
+    .replace(/[^\w\s]/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+
+function score(p) {
+  let s=20, why=[];
+  const tl = p.title.toLowerCase();
+  const cl = p.channel.toLowerCase();
+  const ch = channels.find(c=>c.id===p.channel);
+  const cnl= (ch?.name||'').toLowerCase();
+  const pr = chPrefs[p.channel]||{};
+
+  if (pr.fav)         { s+=50; why.push('⭐ Your favorite'); }
+  if (pr.movie)       { s+=20; why.push('🎬 Movie channel'); }
+  if (pr.foreign)     { s-=30; why.push('🌍 Foreign'); }
+
+  for (const kw of FAV_CH_KW) {
+    if (cl.includes(kw)||cnl.includes(kw)) { s+=30; why.push('Premium channel'); break; }
+  }
+  if (p.cats.some(c=>c.toLowerCase().includes('movie'))) { s+=25; why.push('Movie'); }
+
+  for (const kw of FAV_PROG) {
+    if (tl.includes(kw)) { s+=20; why.push('Keyword: '+kw); }
+  }
+
+  const minUntil = (p.start-new Date())/60000;
+  if (minUntil>=0 && minUntil<=30) { s+=25; why.push('Starting soon'); }
+
+  const h = p.start.getHours();
+  if (h>=18 && h<=22)  { s+=15; why.push('Prime time'); }
+  if (h<6)             { s-=10; why.push('Late night'); }
+  if (cl.includes('hd')||cnl.includes('hd')) { s+=5; why.push('HD'); }
+
+  return {p, s, why};
+}
+
+function renderReco() {
+  const now = new Date(), tomorrow = new Date(now.getTime()+24*3600000);
+  let items = programs.filter(p=>p.start>now && p.start<tomorrow);
+
+  // apply filter
+  if (recoFilter==='soon')   items = items.filter(p=>(p.start-now)/60000<=60);
+  if (recoFilter==='movie')  items = items.filter(p=>p.cats.some(c=>c.toLowerCase().includes('movie')));
+  if (recoFilter==='prime')  items = items.filter(p=>{ const h=p.start.getHours(); return h>=18&&h<=22; });
+  if (recoFilter==='fav')    items = items.filter(p=>chPrefs[p.channel]?.fav);
+  if (recoFilter==='nofgn')  items = items.filter(p=>!chPrefs[p.channel]?.foreign);
+
+  let scored = items.map(score).sort((a,b)=>b.s-a.s||a.p.start-b.p.start);
+
+  // dedupe by normalized title
+  const seen = new Set();
+  scored = scored.filter(({p}) => {
+    const k = normalizeTitle(p.title);
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  }).slice(0,60);
+
+  const list = document.getElementById('r-list');
+  if (!scored.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">⭐</div><h2>${programs.length?'No matches':'No data'}</h2><p>${programs.length?'Try a different filter.':'Load an XMLTV file first.'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML='';
+  const now2 = new Date();
+
+  scored.forEach(({p,s,why}) => {
+    const ch  = channels.find(c=>c.id===p.channel);
+    const chn = ch?.name||p.channel;
+    const mins = Math.round((p.start-now2)/60000);
+    const dur  = Math.round((p.stop-p.start)/60000);
+    const col  = s>=100?'#3fb950':s>=70?'#d29922':'#8b949e';
+
+    const row = el('div','r-item');
+    const sched = isScheduled(p);
+    row.innerHTML = `
+      <div class="r-score" style="background:${col}22;border:2px solid ${col};color:${col}">${s}</div>
+      <div class="r-info">
+        <div class="r-title">${esc(p.title)}
+          ${mins<=5?'<span class="badge b-now">NOW</span>':mins<=30?'<span class="badge b-soon">SOON</span>':''}
+        </div>
+        <div class="r-meta">
+          <span>📺 ${esc(chn)}</span>
+          <span>🕐 ${fmtDT(p.start)}</span>
+          <span>⏱ ${dur}min</span>
+          ${p.cats.length?`<span>🏷 ${p.cats.slice(0,2).map(esc).join(', ')}</span>`:''}
+        </div>
+        ${why.length?`<div class="r-why">${esc(why.join(' · '))}</div>`:''}
+      </div>
+      <button class="btn sm ${sched?'ok filled':''}">${sched?'✓ Scheduled':'+ Schedule'}</button>
+    `;
+    row.querySelector('button').addEventListener('click', e => {
+      e.stopPropagation();
+      toggleSchedule(p);
+      renderReco();
+      renderSchedule();
+      renderGuide();
+    });
+    row.addEventListener('click', e => {
+      if (e.target.tagName!=='BUTTON') openModal(p, ch);
+    });
+    list.appendChild(row);
+  });
+}
+
+// ══════════════════════════════════════════════
+// CHANNELS
+// ══════════════════════════════════════════════
+function renderChannels() {
+  const fi = document.getElementById('ch-fi').value.toLowerCase();
+  const list = document.getElementById('ch-list');
+  if (!channels.length) {
+    list.innerHTML='<div class="empty"><div class="empty-icon">📡</div><h2>No channels</h2><p>Load an XMLTV file first.</p></div>';
+    return;
+  }
+  const vis = channels.filter(ch=>!fi||ch.name.toLowerCase().includes(fi)||ch.id.toLowerCase().includes(fi));
+  list.innerHTML='';
+  vis.forEach(ch => {
+    const pr = chPrefs[ch.id]||{};
+    const row = el('div','ch-row');
+    row.innerHTML = `
+      ${ch.icon?`<img class="ch-ico" src="${esc(ch.icon)}" onerror="this.replaceWith(makePHStr('${esc(ch.name)}'))" title="${esc(ch.name)}">`
+               :`<div class="ch-ico-ph">${esc(ch.name.replace(/[^A-Za-z0-9]/g,'').substring(0,4))}</div>`}
+      <div class="ch-row-name">${esc(ch.name)}</div>
+      <div class="ch-row-id" title="${esc(ch.id)}">${esc(ch.id)}</div>
+      <div class="tg-grp">
+        <button class="tg ${pr.fav?'fav':''}"     data-id="${esc(ch.id)}" data-p="fav">★ Fav</button>
+        <button class="tg ${pr.movie?'movie':''}"  data-id="${esc(ch.id)}" data-p="movie">🎬 Movie</button>
+        <button class="tg ${pr.foreign?'foreign':''}" data-id="${esc(ch.id)}" data-p="foreign">🌍 Foreign</button>
+      </div>
+    `;
+    row.querySelectorAll('.tg').forEach(btn => btn.addEventListener('click', () => {
+      const id=btn.dataset.id, pref=btn.dataset.p;
+      if (!chPrefs[id]) chPrefs[id]={};
+      chPrefs[id][pref] = !chPrefs[id][pref];
+      const cls={fav:'fav',movie:'movie',foreign:'foreign'}[pref];
+      btn.classList.toggle(cls, chPrefs[id][pref]);
+      savePrefs();
+      if (pref==='fav') { renderGuide(); }
+    }));
+    list.appendChild(row);
+  });
+}
+
+// ══════════════════════════════════════════════
+// SCHEDULE
+// ══════════════════════════════════════════════
+function isScheduled(p) {
+  return schedule.some(s=>s.title===p.title && s.start===p.start.toISOString() && s.channel===p.channel);
+}
+
+function toggleSchedule(p) {
+  const idx = schedule.findIndex(s=>s.title===p.title && s.start===p.start.toISOString() && s.channel===p.channel);
+  if (idx>=0) schedule.splice(idx,1);
+  else schedule.push({...p, start:p.start.toISOString(), stop:p.stop.toISOString()});
+  savePrefs();
+}
+
+function renderSchedule() {
+  const list = document.getElementById('sc-list');
+  const now = new Date();
+  const items = schedule
+    .map(s=>({...s, start:new Date(s.start), stop:new Date(s.stop)}))
+    .sort((a,b)=>a.start-b.start);
+
+  if (!items.length) {
+    list.innerHTML='<div class="empty"><div class="empty-icon">🎬</div><h2>Schedule Empty</h2><p>Add programs from the Guide or Recommendations tab.</p></div>';
+    return;
+  }
+
+  list.innerHTML='';
+  items.forEach(p => {
+    const ch   = channels.find(c=>c.id===p.channel);
+    const chn  = ch?.name||p.channel;
+    const past = p.stop<now;
+    const dur  = Math.round((p.stop-p.start)/60000);
+    const mins = Math.round((p.start-now)/60000);
+    const ongoing = p.start<=now && p.stop>now;
+    const pct  = ongoing ? Math.round((now-p.start)/(p.stop-p.start)*100) : (past?100:0);
+
+    const row = el('div','sc-item');
+    if (past) { row.style.opacity='0.5'; row.style.borderLeftColor='var(--text2)'; }
+
+    row.innerHTML = `
+      <div class="sc-info">
+        <div class="sc-title">${esc(p.title)}
+          ${past?'<span style="font-size:11px;color:var(--text2)"> (past)</span>':''}
+          ${ongoing?'<span class="badge b-now">ON NOW</span>':''}
+          ${!past&&!ongoing&&mins<=15?'<span class="badge b-soon">SOON</span>':''}
+        </div>
+        <div class="sc-meta">
+          📺 ${esc(chn)} &nbsp;·&nbsp;
+          🕐 ${fmtDT(p.start)} &nbsp;·&nbsp;
+          ⏱ ${dur}min
+          ${!past&&!ongoing?` &nbsp;·&nbsp; In ${mins>=60?Math.floor(mins/60)+'h '+mins%60+'m':mins+'m'}`:''}
+        </div>
+        ${ongoing?`<div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:${pct}%"></div></div>`:''}
+      </div>
+      <button class="btn sm danger" data-rm>Remove</button>
+    `;
+    row.querySelector('[data-rm]').addEventListener('click', () => {
+      schedule = schedule.filter(s=>!(s.title===p.title&&s.start===p.start.toISOString()&&s.channel===p.channel));
+      savePrefs(); renderSchedule(); renderGuide();
+    });
+    list.appendChild(row);
+  });
+}
+
+// ══════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════
+function clearModalDetails() {
+  const poster = document.getElementById('m-poster');
+  if (poster) { poster.style.display = 'none'; poster.src = ''; }
+  const meta = document.getElementById('m-omdb-meta');
+  if (meta) meta.innerHTML = '';
+  const plot = document.getElementById('m-plot');
+  if (plot) plot.textContent = '';
+}
+
+async function loadModalDetails(title, norm) {
+  try {
+    const params = new URLSearchParams({title, norm: norm||''});
+    const res = await fetch(`${SERVER}/movie-details?${params}`, {signal: AbortSignal.timeout(10000)});
+    if (!res.ok) return;
+    const d = await res.json();
+    if (!d || (!d.plot && !d.actors)) return;
+
+    if (d.poster_url) {
+      const img = document.getElementById('m-poster');
+      if (img) { img.src = d.poster_url; img.style.display = 'block'; }
+    }
+
+    const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const v = s => s && s !== 'N/A' ? s : '';
+    let metaHtml = '';
+    if (v(d.rated))       metaHtml += `<span>${esc(d.rated)}</span>`;
+    if (v(d.runtime))     metaHtml += `<span style="margin-left:8px">⏱ ${esc(d.runtime)}</span>`;
+    if (v(d.imdb_rating)) metaHtml += `<span style="margin-left:8px">⭐ ${esc(d.imdb_rating)} IMDb</span>`;
+    if (v(d.genre))       metaHtml += `<div style="margin-top:2px">${esc(d.genre)}</div>`;
+    if (v(d.director))    metaHtml += `<div style="margin-top:2px">🎬 ${esc(d.director)}</div>`;
+    if (v(d.actors))      metaHtml += `<div style="margin-top:2px">🎭 ${esc(d.actors)}</div>`;
+    const metaEl = document.getElementById('m-omdb-meta');
+    if (metaEl) metaEl.innerHTML = metaHtml;
+
+    if (v(d.plot)) {
+      const plotEl = document.getElementById('m-plot');
+      if (plotEl) plotEl.textContent = d.plot;
+    }
+  } catch(e) { console.error('[OMDB]', e); }
+}
+
+function openModal(p, ch) {
+  modalProg = p;
+  const chn = ch?.name||p.channel;
+  const dur = Math.round((p.stop-p.start)/60000);
+  document.getElementById('m-title').textContent = p.title;
+  document.getElementById('m-ch').textContent    = '📺 '+chn;
+  document.getElementById('m-time').textContent  = fmtDT(p.start)+' – '+fmt(p.stop)+' ('+dur+' min)';
+  document.getElementById('m-desc').textContent  = p.desc||'';
+  clearModalDetails();
+
+  const tags = document.getElementById('m-tags');
+  tags.innerHTML='';
+  p.cats.forEach(c => {
+    const t=el('span','tag'+(c.toLowerCase().includes('movie')?' movie':'')); t.textContent=c; tags.appendChild(t);
+  });
+  if (p.rating) { const t=el('span','tag'); t.textContent='⭐ '+p.rating; tags.appendChild(t); }
+
+  const btn = document.getElementById('m-sched-btn');
+  const sched = isScheduled(p);
+  btn.textContent  = sched?'− Remove from Watchlist':'+ Watchlist';
+  btn.className    = 'btn '+(sched?'danger':'ok');
+  btn.onclick = () => { toggleSchedule(p); renderSchedule(); renderGuide(); closeModal(); };
+
+  // Record / Play (only when stream_id available from server)
+  const streamId = p.streamId || ch?.streamId;
+  const streamUrl = streamId
+    ? `http://primestreams.tv:826/live/jFYSJ6UprmRRO/Hq0Nl2sZqRGSR9yo/${streamId}.ts`
+    : null;
+
+  const playBtn = document.getElementById('m-play-btn');
+  const recBtn  = document.getElementById('m-rec-btn');
+
+  if (streamUrl) {
+    const now = new Date();
+    const onNow = p.start <= now && p.stop > now;
+    const isFuture = p.start > now;
+
+    if (!isFuture) {
+      playBtn.style.display = '';
+      playBtn.onclick = () => fetch(`${SERVER}/play/${streamId}?title=${encodeURIComponent(p.title)}`);
+    } else {
+      playBtn.style.display = 'none';
+    }
+    const soon  = !onNow && (p.start - now)/60000 <= 15;
+    if (onNow) {
+      recBtn.style.display = 'none';
+    } else {
+      recBtn.style.display = '';
+      recBtn.textContent = soon ? '⏺ Record (starting soon)' : '⏺ Record';
+      recBtn.className   = soon ? 'btn danger' : 'btn';
+      recBtn.onclick = () => postRecord(p, streamUrl, recBtn);
+    }
+  } else {
+    playBtn.style.display = 'none';
+    recBtn.style.display  = 'none';
+  }
+
+  document.getElementById('modal').classList.add('on');
+  loadModalDetails(p.title, p.normalized_title||'');
+}
+
+let _toastTimer = null;
+function showToast(msg, type='ok', ms=3500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.className = ''; }, ms);
+}
+
+async function postRecord(p, streamUrl, btn) {
+  const duration = Math.round((p.stop - p.start) / 1000);
+  const jobId = 'web-' + Date.now();
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const res = await fetch(`${SERVER}/record`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        job_id:   jobId,
+        title:    p.title,
+        url:      streamUrl,
+        duration: duration,
+        program_type: p.cats.includes('Movie') ? 'MV' : '',
+        start_time: p.start ? p.start.toISOString() : null,
+        end_time:   p.stop  ? p.stop.toISOString()  : null,
+        channel:    p.channel || null,
+        stream_id:  p.streamId || null,
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const scheduled = data.status === 'scheduled';
+      showToast(scheduled ? `🗓 Scheduled: ${p.title}` : `⏺ Recording: ${p.title}`);
+      if (btn) { btn.textContent = scheduled ? '✓ Scheduled' : '✓ Recording'; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)'; }
+      closeModal();
+    } else {
+      showToast(`❌ Record failed: ${data.error||res.status}`, 'err', 5000);
+      if (btn) { btn.disabled = false; btn.textContent = '⏺ REC'; }
+    }
+  } catch(e) {
+    showToast(`❌ No server response: ${e.message}`, 'err', 5000);
+    if (btn) { btn.disabled = false; btn.textContent = '⏺ REC'; }
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('on');
+  modalProg=null;
+}
+
+// ══════════════════════════════════════════════
+// PREFS
+// ══════════════════════════════════════════════
+function savePrefs() {
+  try {
+    localStorage.setItem('epg_prefs', JSON.stringify(chPrefs));
+    localStorage.setItem('epg_sched', JSON.stringify(schedule));
+  } catch(e){}
+}
+function loadPrefs() {
+  try {
+    const p=localStorage.getItem('epg_prefs'); if(p) chPrefs=JSON.parse(p);
+    const s=localStorage.getItem('epg_sched'); if(s) schedule=JSON.parse(s);
+  } catch(e){}
+}
+
+// ══════════════════════════════════════════════
+// SERVER FETCH  (localhost:5000/guide)
+// ══════════════════════════════════════════════
+const SERVER = '';
+
+let _importRetryTimer = null;
+function scheduleImportRetry() {
+  if (_importRetryTimer) return;
+  document.getElementById('empty-title').textContent = 'Guide import in progress…';
+  document.getElementById('empty-desc').textContent  = 'Retrying in 60 seconds.';
+  _importRetryTimer = setTimeout(() => {
+    _importRetryTimer = null;
+    fetchFromServer(false);
+  }, 60000);
+}
+
+async function fetchFromServer(silent = false) {
+  try {
+    // Fetch guide and full channel list in parallel
+    const [res, chRes] = await Promise.all([
+      fetch(`${SERVER}/guide?filter=fav_movies&limit=15000`, {signal: AbortSignal.timeout(60000)}),
+      fetch(`${SERVER}/channels`, {signal: AbortSignal.timeout(30000)})
+    ]);
+    if (res.status === 500 || res.status === 503) {
+      const d = await res.json().catch(()=>({}));
+      if ((d.error||'').includes('import in progress') || d.retry) {
+        scheduleImportRetry(); return;
+      }
+    }
+    if (!res.ok) throw new Error('Server returned ' + res.status);
+    const data = await res.json();
+    const items = data.items || [];
+    const allChs = chRes.ok ? await chRes.json() : [];
+
+    // Always sync fav/movie from DB (source of truth); preserve user's foreign flag
+    allChs.forEach(r => {
+      const existing = chPrefs[r.channel_id] || {};
+      chPrefs[r.channel_id] = {
+        fav:     !!r.favorite,
+        movie:   !!r.is_movie_channel,
+        foreign: existing.foreign || false
+      };
+    });
+    console.log('[EPG] /channels returned', allChs.length, 'channels,',
+      allChs.filter(r=>r.favorite).length, 'favorites');
+
+    // Build channel map starting with ALL favorite channels (even those without programs)
+    const chMap = new Map();
+    allChs.forEach(r => {
+      if (r.favorite) {
+        chMap.set(r.channel_id, {
+          id:        r.channel_id,
+          name:      r.nickname || r.my_channel || r.channel_id,
+          icon:      null,
+          myChannel: r.my_channel,
+          streamId:  r.stream_id
+        });
+      }
+    });
+    // Add non-favorite channels that do have programs
+    items.forEach(r => {
+      if (!chMap.has(r.channel)) {
+        chMap.set(r.channel, {
+          id:        r.channel,
+          name:      r.nickname || r.my_channel || r.channel,
+          icon:      null,
+          myChannel: r.my_channel,
+          streamId:  r.stream_id
+        });
+        if (!chPrefs[r.channel]) {
+          chPrefs[r.channel] = {
+            fav:     !!r.favorite,
+            movie:   !!r.is_movie_channel,
+            foreign: false
+          };
+        }
+      }
+    });
+    channels = [...chMap.values()];
+    console.log('[EPG] channels array:', channels.length, 'total,',
+      channels.filter(c=>chPrefs[c.id]?.fav).length, 'favorites');
+    savePrefs();
+
+    // Build program list
+    programs = items.map(r => ({
+      channel:          r.channel,
+      title:            r.title,
+      desc:             '',
+      start:            new Date(r.start_time.replace(' ', 'T')),
+      stop:             new Date(r.end_time.replace(' ', 'T')),
+      cats:             r.program_type === 'MV' ? ['Movie'] : [],
+      rating:           '',
+      progress:         r.progress,
+      streamId:         r.stream_id || null,
+      icon:             null,
+      normalized_title: r.normalized_title || '',
+      in_plex:          r.in_plex || 0,
+      plex_path:        r.plex_path || null,
+      plex_size_gb:     r.plex_size_gb || null,
+    })).filter(p => p.start && p.stop && !isNaN(p.start));
+
+    programs.sort((a,b) => a.start - b.start);
+
+    // Persist to session
+    try {
+      sessionStorage.setItem('epg', JSON.stringify({
+        c: channels,
+        p: programs.map(p => ({...p, start: p.start.toISOString(), stop: p.stop.toISOString()}))
+      }));
+    } catch(e) {}
+
+    if (items.length) {
+      dataLoaded();
+      fetchListView();
+    } else {
+      document.getElementById('empty-icon').textContent  = '📭';
+      document.getElementById('empty-title').textContent = 'Server connected — no guide data yet';
+      document.getElementById('empty-desc').textContent  = 'Guide import may still be running. Try Refresh in a minute.';
+    }
+    showServerBadge(true);
+
+  } catch(e) {
+    showServerBadge(false);
+    if (!silent) {
+      document.getElementById('empty-icon').textContent  = '📡';
+      document.getElementById('empty-title').textContent = 'Server not reachable';
+      document.getElementById('empty-desc').textContent  = `Could not connect. Error: ${e.message}`;
+      document.getElementById('empty-manual').style.display = 'block';
+      document.getElementById('empty-retry').style.display = 'block';
+    }
+  }
+}
+
+async function retryGuideImport() {
+  const btn = document.getElementById('btn-retry-import');
+  const status = document.getElementById('retry-import-status');
+  btn.disabled = true;
+  status.textContent = 'Triggering import…';
+  try {
+    const res = await fetch(`${SERVER}/guide_import`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({force: true, source: 'web-retry'})});
+    const d = await res.json().catch(()=>({}));
+    if (res.ok) {
+      status.textContent = 'Import started — retrying in 30s…';
+      setTimeout(() => { btn.disabled = false; status.textContent = ''; fetchFromServer(false); }, 30000);
+    } else {
+      status.textContent = d.error || ('Error ' + res.status);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    status.textContent = 'Could not reach server.';
+    btn.disabled = false;
+  }
+}
+
+function showServerBadge(ok) {
+  let badge = document.getElementById('server-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'server-badge';
+    badge.style.cssText = 'font-size:11px;padding:2px 9px;border-radius:10px;border:1px solid;margin-left:8px';
+    document.querySelector('.hdr-r').prepend(badge);
+  }
+  if (ok) {
+    badge.textContent = '🟢 Server live';
+    badge.style.borderColor = 'var(--green)';
+    badge.style.color       = 'var(--green)';
+  } else {
+    badge.textContent = '🔴 Server offline';
+    badge.style.borderColor = 'var(--red)';
+    badge.style.color       = 'var(--red)';
+  }
+}
+
+// ══════════════════════════════════════════════
+// DEMO DATA
+// ══════════════════════════════════════════════
+function loadDemo() {
+  const now=new Date(), h=now.getHours();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const dt=(dOff,hr,mn=0)=>new Date(today.getTime()+dOff*86400000+hr*3600000+mn*60000);
+
+  channels=[
+    {id:'hbo.us',      name:'HBO',            icon:null},
+    {id:'showtime.us', name:'Showtime',        icon:null},
+    {id:'amc.us',      name:'AMC',             icon:null},
+    {id:'tbs.us',      name:'TBS',             icon:null},
+    {id:'tnt.us',      name:'TNT',             icon:null},
+    {id:'syfy.us',     name:'Syfy',            icon:null},
+    {id:'fx.us',       name:'FX',              icon:null},
+    {id:'usa.us',      name:'USA Network',     icon:null},
+    {id:'nbcsn.us',    name:'NBC Sports',      icon:null},
+    {id:'canal5.mx',   name:'Canal 5 Mexico',  icon:null},
+  ];
+
+  const lib=[
+    {title:'The Dark Knight',         desc:'Batman faces the Joker in this acclaimed thriller.',           cats:['Movie','Action'], rating:'PG-13', dur:152},
+    {title:'Inception',               desc:'A thief plants an idea inside a target\'s dreams.',            cats:['Movie','Sci-Fi'], rating:'PG-13', dur:148},
+    {title:'Pulp Fiction',            desc:'Interconnected crime stories in Los Angeles.',                  cats:['Movie','Crime'],  rating:'R',     dur:154},
+    {title:'The Godfather',           desc:'A crime family patriarch transfers power to his son.',          cats:['Movie','Drama'],  rating:'R',     dur:175},
+    {title:'Forrest Gump',            desc:'Forrest lives through decades of American history.',           cats:['Movie','Drama'],  rating:'PG-13', dur:142},
+    {title:'Breaking Bad Marathon',   desc:'Back-to-back episodes of the hit drama series.',               cats:['Series','Drama'], rating:'TV-MA', dur:90},
+    {title:'Oppenheimer',             desc:'The story of J. Robert Oppenheimer and the bomb.',             cats:['Movie','Drama','History'], rating:'R', dur:180},
+    {title:'Interstellar',            desc:'Astronauts travel a wormhole to find a new home.',             cats:['Movie','Sci-Fi'], rating:'PG-13', dur:169},
+    {title:'The Walking Dead',        desc:'Survivors navigate a post-zombie-apocalypse world.',           cats:['Series','Horror'],rating:'TV-MA', dur:60},
+    {title:'Avengers: Endgame',       desc:'The Avengers assemble one final time against Thanos.',         cats:['Movie','Action'], rating:'PG-13', dur:181},
+    {title:'Late Night News',         desc:'Tonight\'s top stories.',                                      cats:['News'],           rating:'TV-G',  dur:60},
+    {title:'Dune: Part Two',          desc:'Paul Atreides unites with Chani against the Harkonnens.',     cats:['Movie','Sci-Fi'], rating:'PG-13', dur:166},
+    {title:'House of the Dragon',     desc:'Targaryen civil war – the Dance of the Dragons.',              cats:['Series','Fantasy'],rating:'TV-MA',dur:70},
+    {title:'The Shawshank Redemption',desc:'Two imprisoned men bond over years, finding solace.',         cats:['Movie','Drama'],  rating:'R',     dur:142},
+    {title:'Gladiator',               desc:'A general becomes a slave seeking revenge as a gladiator.',    cats:['Movie','Action'], rating:'R',     dur:155},
+    {title:'Novela del Momento',      desc:'La telenovela más vista de la temporada.',                     cats:['Series','Drama'], rating:'TV-14', dur:60},
+  ];
+
+  const perCh=[
+    [0,1,6],[3,4,13],[5,8,12],[7,10,1],[11,14,0],[2,9,7],[6,3,11],[4,5,2],[10,15,8],[15,15,15]
+  ];
+
+  programs=[];
+  channels.forEach((ch,idx)=>{
+    let cur=new Date(today.getTime()+(h-3)*3600000);
+    const pool=perCh[idx]||[0,1,2];
+    for(let i=0;i<10;i++){
+      const m=lib[pool[i%pool.length]];
+      const end=new Date(cur.getTime()+m.dur*60000);
+      programs.push({channel:ch.id,title:m.title,desc:m.desc,start:new Date(cur),stop:end,cats:m.cats,rating:m.rating,icon:null});
+      cur=end;
+    }
+  });
+
+  programs.sort((a,b)=>a.start-b.start);
+
+  // preset a few prefs
+  chPrefs['hbo.us']     ={fav:true,movie:true};
+  chPrefs['showtime.us']={fav:true,movie:true};
+  chPrefs['amc.us']     ={movie:true};
+  chPrefs['canal5.mx']  ={foreign:true};
+
+  savePrefs();
+  dataLoaded();
+}
+
+// ══════════════════════════════════════════════
+// UTIL
+// ══════════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════
+// CONVERSIONS
+// ══════════════════════════════════════════════
+let cvCandidates = [];   // raw from server
+let cvQueuePaused = false;
+let cvQueuedTitles = new Set(); // titles currently in queue
+let cvGridList = [];     // current filtered+sorted view (index matches card)
+let cvPollTimer = null;
+
+function cvFmtSize(bytes) {
+  if (!bytes) return '';
+  const gb = bytes / (1024**3);
+  return gb >= 1 ? gb.toFixed(1) + ' GB' : (bytes/(1024**2)).toFixed(0) + ' MB';
+}
+
+function cvFmtTime(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e) { return iso; }
+}
+
+function cvFilteredSorted() {
+  const q = (document.getElementById('cv-search')?.value||'').toLowerCase().trim();
+  const sort = document.getElementById('cv-sort')?.value || 'alpha';
+  let list = cvCandidates.filter(c => !q || c.title.toLowerCase().includes(q));
+  list = [...list].sort((a,b) => {
+    if (sort==='alpha')      return a.title.localeCompare(b.title);
+    if (sort==='alpha-desc') return b.title.localeCompare(a.title);
+    if (sort==='size-desc')  return (b.size||0) - (a.size||0);
+    if (sort==='size-asc')   return (a.size||0) - (b.size||0);
+    if (sort==='date-desc')  return (b.modified||'').localeCompare(a.modified||'');
+    return 0;
+  });
+  return list;
+}
+
+function cvRenderGrid() {
+  const grid = document.getElementById('cv-grid');
+  const list = cvFilteredSorted();
+  const countEl = document.getElementById('cv-count');
+  const qAllBtn = document.getElementById('cv-btn-queue-all');
+
+  countEl.textContent = list.length ? `${list.length} file${list.length!==1?'s':''}` : '';
+  qAllBtn.style.display = list.length ? '' : 'none';
+
+  if (!cvCandidates.length) {
+    grid.innerHTML = '<div class="cv-empty" style="grid-column:1/-1">Click <b>Scan for .ts Files</b> to find movies ready to convert.</div>';
+    return;
+  }
+  if (!list.length) {
+    grid.innerHTML = '<div class="cv-empty" style="grid-column:1/-1">No matches</div>';
+    return;
+  }
+
+  cvGridList = list;
+  grid.innerHTML = list.map((c, i) => {
+    const queued  = cvQueuedTitles.has(c.title);
+    const inPlex  = !!c.in_plex;
+    const failed  = !!c.prev_failed;
+    const fname   = (c.source_path||'').split('/').pop();
+    const classes = ['cv-card', queued?'is-queued':'', inPlex?'in-plex':''].filter(Boolean).join(' ');
+    let footer;
+    if (queued) {
+      footer = '<span class="cv-status queued">queued</span>';
+    } else if (inPlex) {
+      footer = `<div style="display:flex;gap:5px;width:100%">
+        <span class="cv-status done" style="flex:1;text-align:center">📀 in Plex</span>
+        <button class="btn sm" onclick="cvQueueByIdx(${i})" style="font-size:10px" title="Re-convert">↺</button>
+      </div>`;
+    } else {
+      footer = `<button class="btn sm ok" onclick="cvQueueByIdx(${i})" style="font-size:11px;width:100%">+ Queue${failed?' (retry)':''}</button>`;
+    }
+    return `<div class="${classes}">
+      <div class="cv-card-title">${esc(c.title)}</div>
+      <div class="cv-card-size">${cvFmtSize(c.size)}</div>
+      <div class="cv-card-path" title="${esc(c.source_path||'')}">${esc(fname)}</div>
+      <div class="cv-card-footer">${footer}</div>
+    </div>`;
+  }).join('');
+}
+
+async function cvRefresh() {
+  try {
+    const r = await fetch(`${SERVER}/convert_queue`);
+    if (!r.ok) return;
+    const d = await r.json();
+    cvRenderSidebar(d);
+  } catch(e) { console.error('[CV]', e); }
+}
+
+function cvRenderSidebar(d) {
+  cvQueuePaused = !!d.paused;
+
+  // Update queued titles set so grid cards reflect state
+  cvQueuedTitles = new Set(
+    (d.queued||[]).filter(i=>['queued','deferred','running'].includes(i.status)).map(i=>i.title)
+  );
+
+  // Status bar
+  const bar = document.getElementById('cv-status-bar');
+  const parts = [];
+  if (d.queued_count) parts.push(`${d.queued_count} queued`);
+  if (d.paused) parts.push(`⏸ ${d.pause_reason||'Paused'}`);
+  bar.textContent = parts.join(' · ');
+
+  // Pause button
+  const pauseBtn = document.getElementById('cv-btn-pause');
+  pauseBtn.textContent = d.paused ? '▶ Resume' : '⏸ Pause';
+  pauseBtn.className   = d.paused ? 'btn sm ok' : 'btn sm';
+
+  // Active
+  const activeSection = document.getElementById('cv-active-section');
+  const activeBody    = document.getElementById('cv-active-body');
+  if (d.active) {
+    activeSection.style.display = '';
+    activeBody.innerHTML = `<div class="cv-row">
+      <span class="cv-active-pulse"></span>
+      <div class="cv-row-meta">
+        <div class="cv-row-title">${esc(d.active)}</div>
+        <div class="cv-row-path">→ .mp4 for Plex</div>
+      </div>
+    </div>`;
+  } else {
+    activeSection.style.display = 'none';
+  }
+
+  // Queue
+  const qBody = document.getElementById('cv-queue-body');
+  const queued = (d.queued||[]).filter(i=>['queued','deferred','running'].includes(i.status));
+  qBody.innerHTML = queued.length
+    ? queued.map(item=>`
+        <div class="cv-row">
+          <div class="cv-row-meta">
+            <div class="cv-row-title">${esc(item.title)}</div>
+          </div>
+          <span class="cv-status ${item.status}">${item.status}</span>
+        </div>`).join('')
+    : '<div class="cv-empty">Empty</div>';
+
+  // History
+  const hBody = document.getElementById('cv-history-body');
+  const recent = (d.recent||[]).slice().reverse();
+  hBody.innerHTML = recent.length
+    ? recent.map(item=>`
+        <div class="cv-row">
+          <div class="cv-row-meta">
+            <div class="cv-row-title">${item.status==='done'?'✓':item.status==='failed'?'✗':'−'} ${esc(item.title)}</div>
+            <div class="cv-row-path">${cvFmtTime(item.finished_at||item.queued_at)}</div>
+          </div>
+          <span class="cv-status ${item.status}">${item.status}</span>
+        </div>`).join('')
+    : '<div class="cv-empty">No history yet</div>';
+
+  // Re-render grid cards to reflect queued state
+  if (cvCandidates.length) cvRenderGrid();
+}
+
+async function cvScan() {
+  const btn = document.getElementById('cv-btn-scan');
+  btn.textContent = '⏳ Scanning…';
+  btn.disabled = true;
+  const showAll = document.getElementById('cv-show-all')?.checked ? '&all=1' : '';
+  try {
+    const [scanRes, qRes] = await Promise.all([
+      fetch(`${SERVER}/convert_backlog/candidates?limit=500${showAll}`),
+      fetch(`${SERVER}/convert_queue`)
+    ]);
+    const scanD = await scanRes.json();
+    cvCandidates = (scanD.candidates||[]);
+    if (qRes.ok) { const qD = await qRes.json(); cvRenderSidebar(qD); }
+    cvRenderGrid();
+    showToast(`Found ${cvCandidates.length} .ts file${cvCandidates.length!==1?'s':''}`, 'ok');
+  } catch(e) {
+    showToast('Scan failed', 'err');
+    console.error('[CV scan]', e);
+  } finally {
+    btn.textContent = '🔍 Scan for .ts Files';
+    btn.disabled = false;
+  }
+}
+
+async function cvQueueByIdx(i) {
+  const c = cvGridList[i];
+  if (c) await cvQueueCard(c.title, c.source_path);
+}
+
+async function cvQueueCard(title, sourcePath) {
+  try {
+    const r = await fetch(`${SERVER}/convert_plex_ts`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({title, source_path: sourcePath, queue:true})
+    });
+    const d = await r.json();
+    if (r.ok) {
+      showToast(`Queued: ${title}`, 'ok');
+      cvRenderSidebar(d.queue||{});
+    } else {
+      showToast(d.error||'Queue failed', 'err');
+    }
+  } catch(e) { showToast('Queue failed','err'); console.error('[CV queue]',e); }
+}
+
+async function cvQueueAll() {
+  const list = cvFilteredSorted().filter(c => !cvQueuedTitles.has(c.title));
+  if (!list.length) return;
+  const btn = document.getElementById('cv-btn-queue-all');
+  btn.disabled = true; btn.textContent = '⏳ Queuing…';
+  let queued = 0;
+  for (const c of list) {
+    try {
+      const r = await fetch(`${SERVER}/convert_plex_ts`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({title:c.title, source_path:c.source_path, queue:true})
+      });
+      if (r.ok) queued++;
+    } catch(e) {}
+  }
+  await cvRefresh();
+  showToast(`Queued ${queued} file${queued!==1?'s':''}`, 'ok');
+  btn.disabled = false; btn.textContent = '+ Queue All';
+}
+
+async function cvClearQueue() {
+  if (!confirm('Clear all pending conversions from the queue?')) return;
+  try {
+    const r = await fetch(`${SERVER}/convert_queue/clear`, {method:'POST'});
+    const d = await r.json();
+    cvRenderSidebar(d.queue||d);
+    showToast(`Cleared ${d.removed||0} item${d.removed!==1?'s':''}`, 'ok');
+  } catch(e) { showToast('Clear failed','err'); }
+}
+
+function cvStartPolling() {
+  cvStopPolling();
+  cvPollTimer = setInterval(() => { if (!document.hidden) cvRefresh(); }, 6000);
+}
+function cvStopPolling() {
+  if (cvPollTimer) { clearInterval(cvPollTimer); cvPollTimer = null; }
+}
+
+async function cvTogglePause() {
+  const url = cvQueuePaused ? '/convert_queue/resume' : '/convert_queue/pause';
+  try {
+    const r = await fetch(`${SERVER}${url}`, {method:'POST'});
+    const d = await r.json();
+    cvRenderSidebar(d.queue||d);
+  } catch(e) { showToast('Request failed','err'); }
+}
+
+// Wire up buttons once DOM is ready
+window.addEventListener('load', () => {
+  document.getElementById('cv-btn-scan').addEventListener('click', cvScan);
+  document.getElementById('cv-btn-pause').addEventListener('click', cvTogglePause);
+  document.getElementById('cv-btn-refresh').addEventListener('click', cvRefresh);
+  document.getElementById('cv-btn-clear').addEventListener('click', cvClearQueue);
+  document.getElementById('cv-btn-queue-all').addEventListener('click', cvQueueAll);
+  document.getElementById('cv-search').addEventListener('input', cvRenderGrid);
+  document.getElementById('cv-sort').addEventListener('change', cvRenderGrid);
+  document.getElementById('cv-show-all').addEventListener('change', () => { if (cvCandidates.length) cvScan(); });
+});
+</script>
+</body>
+</html>
