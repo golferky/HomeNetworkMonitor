@@ -67,7 +67,7 @@
       "name": "iPad",
       "mac": "7e:1d:f9:81:bb:44",
       "ip": "192.168.1.15",
-      "notify": true,
+      "notify": false,
       "category": "apple"
     },
     {
