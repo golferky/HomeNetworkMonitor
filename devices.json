@@ -265,6 +265,20 @@
       "ip": "192.168.1.201",
       "notify": true,
       "category": "computer"
+    },
+    {
+      "name": "Orbi Satellite 1",
+      "mac": "34:98:b5:9e:d9:ee",
+      "ip": "192.168.1.21",
+      "notify": true,
+      "category": "infrastructure"
+    },
+    {
+      "name": "Orbi Satellite 2",
+      "mac": "34:98:b5:9e:d9:fa",
+      "ip": "192.168.1.23",
+      "notify": true,
+      "category": "infrastructure"
     }
   ]
 }

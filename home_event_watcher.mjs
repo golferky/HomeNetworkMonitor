@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.3'
+const WATCHER_VERSION = '2026.07.21.4'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -445,6 +445,68 @@ async function collectSmartThingsEvents() {
   return items
 }
 
+// ─── Roku Monitor ────────────────────────────────────────────────────────────
+
+const ROKU_DEVICES = [
+  { name: 'Hisense Roku TV', ip: '192.168.1.9' },
+]
+
+const ROKU_TIMEOUT = parseInt(process.env.HOME_ROKU_TIMEOUT ?? '5000', 10)
+
+function parseXmlValue(xml, tag) {
+  const m = xml.match(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`))
+  return m ? m[1].trim() : null
+}
+
+async function collectRokuEvents() {
+  const items = []
+  for (const roku of ROKU_DEVICES) {
+    try {
+      const [deviceResp, appResp] = await Promise.all([
+        fetch(`http://${roku.ip}:8060/query/device-info`, { signal: AbortSignal.timeout(ROKU_TIMEOUT) }),
+        fetch(`http://${roku.ip}:8060/query/active-app`,  { signal: AbortSignal.timeout(ROKU_TIMEOUT) }),
+      ])
+      const deviceXml = await deviceResp.text()
+      const appXml    = await appResp.text()
+
+      const powerMode = parseXmlValue(deviceXml, 'power-mode') ?? 'Unknown'
+      const isOn      = powerMode === 'PowerOn'
+      const appName   = parseXmlValue(appXml, 'app') ?? 'Unknown'
+      const isHome    = appXml.includes('type="home"')
+
+      // Power state
+      items.push({
+        key: `roku:power:${roku.ip}`,
+        source: 'Roku',
+        category: 'Light',
+        name: roku.name,
+        state: isOn ? 'on' : 'off',
+      })
+
+      // Active app (only when on and not on home screen)
+      if (isOn && !isHome) {
+        items.push({
+          key: `roku:app:${roku.ip}`,
+          source: 'Roku',
+          category: 'Sensor',
+          name: `${roku.name} app`,
+          state: appName,
+        })
+      }
+    } catch(e) {
+      // Roku unreachable — off or sleeping
+      items.push({
+        key: `roku:power:${roku.ip}`,
+        source: 'Roku',
+        category: 'Light',
+        name: roku.name,
+        state: 'off',
+      })
+    }
+  }
+  return items
+}
+
 // ─── Bluetooth Presence Monitor ─────────────────────────────────────────────
 
 const BT_DEVICES = [
@@ -705,6 +767,7 @@ async function collectLgTvEvents() {
 
 async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
+  const rokuItems = await collectRokuEvents()
   const btItems = await collectBluetoothEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
@@ -733,7 +796,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -836,6 +899,8 @@ function formatEvent(event) {
   let action
   if (event.category === 'Light') {
     action = event.state === 'on' ? 'turned on' : 'turned off'
+  } else if (event.source === 'Roku' && event.key?.includes(':app:')) {
+    action = `switched to ${event.state}`
   } else if (event.source === 'Bluetooth') {
     action = event.state === 'active' ? 'is nearby (home)' : 'left range (away)'
   } else if (event.source === 'Network') {
