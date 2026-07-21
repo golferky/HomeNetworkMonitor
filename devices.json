@@ -293,6 +293,13 @@
       "ip": "192.168.1.40",
       "notify": false,
       "category": "light"
+    },
+    {
+      "name": "Pam's iPhone",
+      "mac": "8a:69:35:49:0c:fa",
+      "ip": "192.168.1.112",
+      "notify": true,
+      "category": "phone"
     }
   ]
 }
