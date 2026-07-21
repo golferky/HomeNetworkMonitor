@@ -279,6 +279,20 @@
       "ip": "192.168.1.23",
       "notify": true,
       "category": "infrastructure"
+    },
+    {
+      "name": "Atomi String Lights 1",
+      "mac": "40:f5:20:31:2d:ae",
+      "ip": "192.168.1.39",
+      "notify": false,
+      "category": "light"
+    },
+    {
+      "name": "Atomi String Lights 2",
+      "mac": "48:3f:da:13:72:3d",
+      "ip": "192.168.1.40",
+      "notify": false,
+      "category": "light"
     }
   ]
 }
