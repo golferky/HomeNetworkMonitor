@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.1'
+const WATCHER_VERSION = '2026.07.21.2'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -457,6 +457,8 @@ const BT_DEVICES = [
 
 // Track consecutive BT failures for hysteresis
 const btFailures = new Map()
+// Store latest battery levels for dashboard
+const batteryCache = new Map()
 
 function parseBtBattery(snippet) {
   const batteries = {}
@@ -542,6 +544,7 @@ async function collectBluetoothEvents() {
       if (batt) allBatteries.push({ name, mac, ...batt })
     }
     if (allBatteries.length > 0) {
+      allBatteries.forEach(b => batteryCache.set(b.name, b))
       console.log('BT batteries:', allBatteries.map(b => `${b.name}: ${JSON.stringify({left:b.left,right:b.right,case:b.case,watch:b.watch})}`).join(' | '))
     }
 
@@ -1025,6 +1028,11 @@ function buildDashboard(history, devices) {
   const events = (history.events ?? []).slice(-50).reverse()
   const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
 
+  const batteryRows = [...batteryCache.values()].map(b => {
+    const pct = (v) => v != null ? `<span style="color:${v<20?'#f87171':v<50?'#fbbf24':'#4ade80'}">${v}%</span>` : '<span style="color:#374151">-</span>'
+    return `<tr><td>${b.name}</td><td>${pct(b.left)}</td><td>${pct(b.right)}</td><td>${pct(b.case)}</td><td>${pct(b.watch)}</td></tr>`
+  }).join('') || '<tr><td colspan="5" style="color:#64748b">No battery data yet</td></tr>'
+
   const stateRows = Object.entries(states).map(([key, s]) => {
     const isActive = s.state === 'active' || s.state === 'on' || (s.state && !['off','clear','locked','closed'].includes(s.state.toLowerCase()))
     const dot = isActive ? '#4ade80' : '#374151'
@@ -1059,7 +1067,13 @@ function buildDashboard(history, devices) {
 </head>
 <body>
 <h1>🏠 Home Monitor</h1>
-<div class="sub">Last updated: ${now} · Auto-refreshes every 60s</div>
+<div class="sub">Last updated: ${now} · Auto-refreshes every 60s · v${WATCHER_VERSION}</div>
+
+<h2>Battery Levels</h2>
+<table>
+  <tr><th>Device</th><th>Left</th><th>Right</th><th>Case</th><th>Watch</th></tr>
+  ${batteryRows}
+</table>
 
 <h2>Recent Events</h2>
 <table>
