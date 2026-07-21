@@ -4,10 +4,11 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { exec } from 'child_process'
 import dgram from 'dgram'
 import http from 'http'
+import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.20.6'
+const WATCHER_VERSION = '2026.07.21.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -874,7 +875,14 @@ async function sendIMessage(target, message) {
 }
 
 async function sendEventAlert(events) {
-  const important = events.filter(event => event.category === 'Light' || event.kind === 'sensor_triggered')
+  const important = events.filter(event => {
+    const priority = getEventPriority(event)
+    if (priority === 'critical' || priority === 'important') return true
+    // Also include light/sensor changes that aren't info-only
+    if (event.category === 'Light' && event.source !== 'Bluetooth') return true
+    if (event.kind === 'sensor_triggered') return true
+    return false
+  })
   if (important.length === 0) return
 
   if (!SEND_ALERTS) {
@@ -992,6 +1000,98 @@ async function collectHueWebhookEvents() {
   return events
 }
 
+function getEventPriority(event) {
+  const name = (event.name || '').toLowerCase()
+  const source = (event.source || '').toLowerCase()
+  const key = (event.key || '').toLowerCase()
+
+  // Critical — security events
+  if (key.includes('smartthings:lock') && event.state === 'active') return 'critical'
+  if (key.includes('smartthings:door') && event.state === 'active') return 'critical'
+  if (source === 'network' && event.state === 'active' && name.includes('tesla')) return 'important'
+  if (source === 'network' && event.state === 'clear' && name.includes('tesla')) return 'important'
+  if (source === 'bluetooth' && event.state === 'clear' && name.includes('watch')) return 'important'
+  if (source === 'bluetooth' && event.state === 'active' && name.includes('watch')) return 'important'
+  if (source === 'ring' && event.category === 'Sensor') return 'important'
+
+  // Info — everything else
+  return 'info'
+}
+
+const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT ?? '5558', 10)
+
+function buildDashboard(history, devices) {
+  const states = history.states ?? {}
+  const events = (history.events ?? []).slice(-50).reverse()
+  const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
+
+  const stateRows = Object.entries(states).map(([key, s]) => {
+    const isActive = s.state === 'active' || s.state === 'on' || (s.state && !['off','clear','locked','closed'].includes(s.state.toLowerCase()))
+    const dot = isActive ? '#4ade80' : '#374151'
+    const last = s.lastChangedAt ? new Date(s.lastChangedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : ''
+    return `<tr><td>${s.source}</td><td>${s.name}</td><td><span style="color:${dot}">●</span> ${s.state}</td><td>${last}</td></tr>`
+  }).join('')
+
+  const eventRows = events.map(e => {
+    const time = new Date(e.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})
+    const priority = getEventPriority(e)
+    const color = priority === 'critical' ? '#f87171' : priority === 'important' ? '#fbbf24' : '#9ca3af'
+    return `<tr><td style="color:${color}">${priority}</td><td>${time}</td><td>${e.source}</td><td>${e.name}</td><td>${e.previousState ?? ''} → ${e.state}</td></tr>`
+  }).join('')
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="60">
+<title>Home Monitor</title>
+<style>
+  body{background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;margin:0;padding:20px}
+  h1{color:#7c6af7;margin:0 0 4px}
+  .sub{color:#64748b;font-size:13px;margin-bottom:24px}
+  h2{color:#94a3b8;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin:24px 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:8px 12px;background:#1e293b;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td{padding:7px 12px;border-bottom:1px solid #1e293b}
+  tr:hover td{background:#1e293b}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<h1>🏠 Home Monitor</h1>
+<div class="sub">Last updated: ${now} · Auto-refreshes every 60s</div>
+
+<h2>Recent Events</h2>
+<table>
+  <tr><th>Priority</th><th>Time</th><th>Source</th><th>Device</th><th>Change</th></tr>
+  ${eventRows}
+</table>
+
+<h2>Current Device States</h2>
+<table>
+  <tr><th>Source</th><th>Device</th><th>State</th><th>Last Changed</th></tr>
+  ${stateRows}
+</table>
+</body>
+</html>`
+}
+
+function startDashboard() {
+  const server = http.createServer((req, res) => {
+    if (req.url !== '/' && req.url !== '/dashboard') { res.writeHead(404); res.end(); return }
+    try {
+      const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+      const devices = existsSync('devices.json') ? JSON.parse(readFileSync('devices.json', 'utf-8')) : { devices: [] }
+      const html = buildDashboard(history, devices)
+      res.writeHead(200, { 'Content-Type': 'text/html' })
+      res.end(html)
+    } catch(e) {
+      res.writeHead(500); res.end('Error: ' + e.message)
+    }
+  })
+  server.listen(DASHBOARD_PORT, () => console.log(`Dashboard at http://192.168.1.190:${DASHBOARD_PORT}`))
+}
+
 async function main() {
   console.log(`Home Event Watcher v${WATCHER_VERSION}`)
   console.log(`Polling every ${INTERVAL_SECONDS}s; cause window ${CAUSE_WINDOW_SECONDS}s.`)
@@ -1004,6 +1104,7 @@ async function main() {
 
   ringApi.onRefreshTokenUpdated.subscribe(({ newRefreshToken }) => saveToken(newRefreshToken))
   if (!RUN_ONCE) startHueWebhookListener()
+  if (!RUN_ONCE) startDashboard()
 
   do {
     try {
