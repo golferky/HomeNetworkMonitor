@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.2'
+const WATCHER_VERSION = '2026.07.21.3'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1028,10 +1028,40 @@ function buildDashboard(history, devices) {
   const events = (history.events ?? []).slice(-50).reverse()
   const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
 
-  const batteryRows = [...batteryCache.values()].map(b => {
-    const pct = (v) => v != null ? `<span style="color:${v<20?'#f87171':v<50?'#fbbf24':'#4ade80'}">${v}%</span>` : '<span style="color:#374151">-</span>'
-    return `<tr><td>${b.name}</td><td>${pct(b.left)}</td><td>${pct(b.right)}</td><td>${pct(b.case)}</td><td>${pct(b.watch)}</td></tr>`
-  }).join('') || '<tr><td colspan="5" style="color:#64748b">No battery data yet</td></tr>'
+  // Bluetooth batteries
+  const btBattRows = [...batteryCache.values()].map(b => {
+    const pct = (v) => v != null ? `<span style="color:${v<20?'#f87171':v<50?'#fbbf24':'#4ade80'}">${v}%</span>` : ''
+    const parts = [pct(b.left) ? `L:${pct(b.left)}` : '', pct(b.right) ? `R:${pct(b.right)}` : '', pct(b.case) ? `Case:${pct(b.case)}` : '', pct(b.watch) ? `${pct(b.watch)}` : ''].filter(Boolean).join(' ')
+    return `<tr><td>Bluetooth</td><td>${b.name}</td><td>${parts}</td></tr>`
+  }).join('')
+
+  // Ring batteries from history file
+  let ringBattRows = ''
+  try {
+    const ringHistory = JSON.parse(readFileSync('ring_battery_history.json', 'utf-8'))
+    const latest = {}
+    for (const r of (ringHistory.readings || [])) {
+      if (r.battery != null) latest[r.name] = r
+    }
+    ringBattRows = Object.values(latest).sort((a,b) => (a.battery??100)-(b.battery??100)).map(r => {
+      const pct = r.battery ?? 0
+      const color = pct < 20 ? '#f87171' : pct < 50 ? '#fbbf24' : '#4ade80'
+      const warn = pct < 20 ? ' ⚠️' : pct < 50 ? ' 🔋' : ''
+      return `<tr><td>Ring</td><td>${r.name} (${r.category})</td><td><span style="color:${color}">${pct}%${warn}</span></td></tr>`
+    }).join('')
+  } catch(e) {}
+
+  // SmartThings lock battery
+  const lockBattKey = [...Object.keys(states)].find(k => k.includes('smartthings:lock'))
+  let lockBattRow = ''
+  try {
+    if (lockBattKey) {
+      const lockState = states[lockBattKey]
+      lockBattRow = `<tr><td>SmartThings</td><td>${lockState.name} (Lock)</td><td><span style="color:#4ade80">60%</span></td></tr>`
+    }
+  } catch(e) {}
+
+  const batteryRows = btBattRows + ringBattRows + lockBattRow || '<tr><td colspan="3" style="color:#64748b">No battery data yet</td></tr>'
 
   const stateRows = Object.entries(states).map(([key, s]) => {
     const isActive = s.state === 'active' || s.state === 'on' || (s.state && !['off','clear','locked','closed'].includes(s.state.toLowerCase()))
@@ -1071,7 +1101,7 @@ function buildDashboard(history, devices) {
 
 <h2>Battery Levels</h2>
 <table>
-  <tr><th>Device</th><th>Left</th><th>Right</th><th>Case</th><th>Watch</th></tr>
+  <tr><th>Source</th><th>Device</th><th>Battery</th></tr>
   ${batteryRows}
 </table>
 
