@@ -7,7 +7,7 @@ import http from 'http'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.20.3'
+const WATCHER_VERSION = '2026.07.20.6'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -371,8 +371,7 @@ async function collectSmartThingsEvents() {
     const isRange  = category.includes('range') || category.includes('oven') ||
                      device.label?.toLowerCase().includes('range') ||
                      device.label?.toLowerCase().includes('oven')
-    const isGarage = category.includes('garage') || category.includes('door') ||
-                     device.label?.toLowerCase().includes('door') ||
+    const isGarage = category.includes('garage') || category === 'garagedoor' ||
                      device.label?.toLowerCase().includes('garage')
     const isLock   = category.includes('lock') || category.includes('smartlock') ||
                      device.label?.toLowerCase().includes('lock') ||
@@ -443,6 +442,113 @@ async function collectSmartThingsEvents() {
   }
 
   return items
+}
+
+// ─── Bluetooth Presence Monitor ─────────────────────────────────────────────
+
+const BT_DEVICES = [
+  { name: "Gary's Apple Watch", mac: "DC:95:66:1D:23:89", notify: true },
+  { name: "Gary's iPhone (BT)",  mac: "C0:6C:0C:E2:97:7C", notify: false },
+  { name: "Gary's iPad (BT)",    mac: "CC:44:63:BE:12:61", notify: false },
+  { name: "Gary's iPad Air (BT)","mac": "50:23:A2:7E:C1:EE", notify: false },
+  { name: "Gary's MacBook (BT)", mac: "F7:3A:80:A8:BE:D8", notify: false },
+]
+
+// Track consecutive BT failures for hysteresis
+const btFailures = new Map()
+
+function parseBtBattery(snippet) {
+  const batteries = {}
+  const left  = snippet.match(/Left Battery Level:\s*(\d+)%/)
+  const right = snippet.match(/Right Battery Level:\s*(\d+)%/)
+  const cas   = snippet.match(/Case Battery Level:\s*(\d+)%/)
+  const watch = snippet.match(/Battery Level:\s*(\d+)%/)
+  if (left)  batteries.left  = parseInt(left[1])
+  if (right) batteries.right = parseInt(right[1])
+  if (cas)   batteries.case  = parseInt(cas[1])
+  if (watch && !left) batteries.watch = parseInt(watch[1])
+  return Object.keys(batteries).length ? batteries : null
+}
+
+async function collectBluetoothEvents() {
+  try {
+    const { stdout } = await execAsync('system_profiler SPBluetoothDataType 2>/dev/null', { timeout: 15000 })
+    const items = []
+
+    // Parse all named devices and their battery/RSSI
+    const deviceBlocks = stdout.split(/(?=\n\s{10}\S)/)
+
+    for (const device of BT_DEVICES) {
+      const macIndex = stdout.indexOf(device.mac)
+      if (macIndex === -1) {
+        const key = `bluetooth:${device.mac}`.toLowerCase()
+        const failures = (btFailures.get(key) ?? 0) + 1
+        btFailures.set(key, failures)
+        if (failures >= 3 && device.notify) {
+          items.push({ key, source: 'Bluetooth', category: 'Sensor', name: device.name, state: 'clear' })
+        }
+        continue
+      }
+
+      const snippet = stdout.slice(macIndex, macIndex + 400)
+      const inRange = snippet.includes('RSSI:')
+      const key = `bluetooth:${device.mac}`.toLowerCase()
+
+      if (!inRange) {
+        const failures = (btFailures.get(key) ?? 0) + 1
+        btFailures.set(key, failures)
+        if (failures >= 3 && device.notify) {
+          items.push({ key, source: 'Bluetooth', category: 'Sensor', name: device.name, state: 'clear' })
+        }
+        continue
+      }
+
+      btFailures.delete(key)
+
+      if (device.notify) {
+        items.push({ key, source: 'Bluetooth', category: 'Sensor', name: device.name, state: 'active' })
+      }
+
+      // Battery alerts — alert if any battery < 20%
+      const batteries = parseBtBattery(snippet)
+      if (batteries) {
+        for (const [part, level] of Object.entries(batteries)) {
+          const battKey = `bluetooth:battery:${device.mac}:${part}`.toLowerCase()
+          const low = level < 20
+          const partName = part === 'watch' ? '' : ` (${part})`
+          // Only alert on low battery, use Light category so it fires alerts
+          items.push({
+            key: battKey,
+            source: 'Bluetooth',
+            category: 'Light',
+            name: `${device.name}${partName} battery`,
+            state: low ? 'on' : 'off',
+            batteryLevel: level,
+          })
+        }
+      }
+    }
+
+    // Also scan ALL Bluetooth devices for battery info and log
+    const allBatteries = []
+    const nameMatches = [...stdout.matchAll(/^\s{10}([^\n:]+):\n\s+Address: ([0-9A-Fa-f:]{17})/gm)]
+    for (const m of nameMatches) {
+      const name = m[1].trim()
+      const mac  = m[2]
+      const idx  = stdout.indexOf(mac)
+      const snip = stdout.slice(idx, idx + 400)
+      const batt = parseBtBattery(snip)
+      if (batt) allBatteries.push({ name, mac, ...batt })
+    }
+    if (allBatteries.length > 0) {
+      console.log('BT batteries:', allBatteries.map(b => `${b.name}: ${JSON.stringify({left:b.left,right:b.right,case:b.case,watch:b.watch})}`).join(' | '))
+    }
+
+    return items
+  } catch (e) {
+    console.log(`Bluetooth skipped: ${e.message}`)
+    return []
+  }
 }
 
 // ─── Network Presence Monitor ───────────────────────────────────────────────
@@ -595,6 +701,7 @@ async function collectLgTvEvents() {
 
 async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
+  const btItems = await collectBluetoothEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
       console.log(`Ring skipped: ${err.message}`)
@@ -622,7 +729,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -725,6 +832,8 @@ function formatEvent(event) {
   let action
   if (event.category === 'Light') {
     action = event.state === 'on' ? 'turned on' : 'turned off'
+  } else if (event.source === 'Bluetooth') {
+    action = event.state === 'active' ? 'is nearby (home)' : 'left range (away)'
   } else if (event.source === 'Network') {
     action = event.state === 'active' ? 'came online' : 'went offline'
   } else if (event.name?.toLowerCase().includes('lock') || event.name?.toLowerCase().includes('door') || event.name?.toLowerCase().includes('front')) {
