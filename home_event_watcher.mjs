@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.7'
+const WATCHER_VERSION = '2026.07.22.8'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1257,7 +1257,7 @@ function buildControlPage(history) {
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
         <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="hueCmd('${uniqueid}', true)">On</button>
-        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${isOn?'':'disabled'} onclick="hueCmd('${uniqueid}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${!isOn?'disabled':''} onclick="hueCmd('${uniqueid}', false)">Off</button>
       </div>
     </div>`
   }).join('')
@@ -1285,7 +1285,7 @@ function buildControlPage(history) {
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
         <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="ringCmd('${deviceKey}', true)">On</button>
-        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${isOn?'':'disabled'} onclick="ringCmd('${deviceKey}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${!isOn?'disabled':''} onclick="ringCmd('${deviceKey}', false)">Off</button>
       </div>
     </div>`
   }).join('')
