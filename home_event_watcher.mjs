@@ -1431,6 +1431,21 @@ function showStatus(msg) {
   el.textContent = msg
   el.className = 'status show'
 }
+
+// Auto-refresh when state changes
+let lastHash = null
+async function checkStateHash() {
+  try {
+    const r = await fetch('/control/state-hash')
+    const d = await r.json()
+    if (lastHash && lastHash !== d.hash) {
+      location.reload()
+    }
+    lastHash = d.hash
+  } catch(e) {}
+}
+checkStateHash()
+setInterval(checkStateHash, 5000)
 </script>
 </body>
 </html>`
@@ -1455,6 +1470,20 @@ function startDashboard() {
 function startControlServer() {
   const server = http.createServer(async (req, res) => {
     const send = (data) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)) }
+
+    if (req.method === 'GET' && req.url === '/control/state-hash') {
+      try {
+        const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+        const states = history.states ?? {}
+        const hash = Object.entries(states)
+          .filter(([k]) => k.startsWith('ring:light:') || k.startsWith('hue:light:'))
+          .map(([k,v]) => k + v.state + v.lastChangedAt)
+          .join('|')
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ hash }))
+      } catch(e) { res.writeHead(500); res.end('{}') }
+      return
+    }
 
     if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
       try {
