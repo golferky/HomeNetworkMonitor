@@ -1256,8 +1256,8 @@ function buildControlPage(history) {
       <div class="device-name">${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="hueCmd('${uniqueid}', true)">On</button>
-        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${!isOn?'disabled':''} onclick="hueCmd('${uniqueid}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${isOn?'disabled':''} onclick="hueCmd('${uniqueid}', true)">On</button>
+        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${!isOn?'disabled':''} onclick="hueCmd('${uniqueid}', false)">Off</button>
       </div>
     </div>`
   }).join('')
@@ -1284,8 +1284,8 @@ function buildControlPage(history) {
       <div class="device-name">💡 ${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="ringCmd('${deviceKey}', true)">On</button>
-        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${!isOn?'disabled':''} onclick="ringCmd('${deviceKey}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-active'}" ${isOn?'disabled':''} onclick="ringCmd('${deviceKey}', true)">On</button>
+        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${!isOn?'disabled':''} onclick="ringCmd('${deviceKey}', false)">Off</button>
       </div>
     </div>`
   }).join('')
