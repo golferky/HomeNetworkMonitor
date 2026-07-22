@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.23'
+const WATCHER_VERSION = '2026.07.22.24'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1039,11 +1039,6 @@ const GOVEE_MODELS = {
   '19:D2:D0:03:C1:46:2F:0D': 'H6076',
   'E2:D9:98:17:3C:DF:5D:80': 'H6008',
 }
-const GOVEE_MODELS = {
-  '15:03:DD:99:83:46:67:49': 'H6076',
-  '19:D2:D0:03:C1:46:2F:0D': 'H6076',
-  'E2:D9:98:17:3C:DF:5D:80': 'H6008',
-}
 const HUE_WEBHOOK_PORT = parseInt(process.env.HUE_WEBHOOK_PORT ?? '5555', 10)
 const pendingHueEvents = []
 
@@ -1279,7 +1274,7 @@ function buildControlPage(history) {
     const color = isOn ? '#4ade80' : '#374151'
     const deviceId = key.replace('govee:', '').split(':').map((p,i) => i===0?p:p).join(':')
     // Govee device MAC from key e.g. govee:15:03:dd:99:83:46:67:49
-    const mac = key.replace('govee:', '').toUpperCase()
+    const mac = key.replace("govee:", "")
     return `<div class="device-card" data-govee-id="${mac}">
       <div class="device-name">💡 ${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
@@ -1546,7 +1541,7 @@ function startControlServer() {
         const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
         const states = history.states ?? {}
         const hash = Object.entries(states)
-          .filter(([k]) => k.startsWith('ring:light:') || k.startsWith('hue:light:'))
+          .filter(([k]) => k.startsWith('ring:light:') || k.startsWith('hue:light:') || k.startsWith('govee:'))
           .map(([k,v]) => k + v.state + v.lastChangedAt)
           .join('|')
         res.writeHead(200, {'Content-Type':'application/json'})
@@ -1597,20 +1592,18 @@ function startControlServer() {
           else if (req.url === '/control/govee') {
             try {
               const { device, model, on } = data
-              const model = GOVEE_MODELS[device] || data.model || ''
-              const model = GOVEE_MODELS[device] || data.model || ''
+              const goveeModel = GOVEE_MODELS[device] || data.model || ""
               const resp = await fetch(`${GOVEE_API_BASE}/devices/control`, {
                 method: 'PUT',
                 headers: { 'Govee-API-Key': GOVEE_API_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device, model, cmd: { name: 'turn', value: on ? 'on' : 'off' } })
+                body: JSON.stringify({ device, model: goveeModel, cmd: { name: 'turn', value: on ? 'on' : 'off' } })
               })
               const result = await resp.json()
-              console.log('Govee control result:', JSON.stringify(result))
               console.log('Govee control result:', JSON.stringify(result))
               // Optimistically update history
               try {
                 const hist = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
-                const stateKey = Object.keys(hist.states || {}).find(k => k.includes(device.toLowerCase().replace(/:/g,':')))
+                const stateKey = Object.keys(hist.states || {}).find(k => k.startsWith('govee:') && k.replace('govee:','').toLowerCase() === device.toLowerCase())
                 if (stateKey) {
                   hist.states[stateKey].state = on ? 'on' : 'off'
                   hist.states[stateKey].lastChangedAt = new Date().toISOString()
