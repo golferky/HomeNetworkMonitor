@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.20'
+const WATCHER_VERSION = '2026.07.22.21'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1565,8 +1565,18 @@ function startControlServer() {
                     const lightMode = data.on ? 'on' : 'default'
                     console.log(`Ring control: ${device.data.name} -> lightMode: ${lightMode}`)
                     await device.sendCommand('light-mode.set', { lightMode, duration: 0 })
-                    // Wait briefly then force a poll to update history
-                    setTimeout(() => poll(ringApiInstance).catch(() => {}), 3000)
+                    // Optimistically update history so page refreshes fast
+                    try {
+                      const hist = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+                      const stateKey = Object.keys(hist.states || {}).find(k =>
+                        k.startsWith('ring:light:') && (hist.states[k].name || '').toLowerCase().includes(data.deviceKey.toLowerCase())
+                      )
+                      if (stateKey) {
+                        hist.states[stateKey].state = data.on ? 'on' : 'off'
+                        hist.states[stateKey].lastChangedAt = new Date().toISOString()
+                        writeFileSync(HISTORY_FILE, JSON.stringify(hist, null, 2))
+                      }
+                    } catch(e) { console.log('Optimistic update failed:', e.message) }
                     found = true
                     break
                   }
