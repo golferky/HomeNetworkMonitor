@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.4'
+const WATCHER_VERSION = '2026.07.22.6'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1256,14 +1256,26 @@ function buildControlPage(history) {
       <div class="device-name">${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn btn-on"  onclick="hueCmd('${uniqueid}', true)">On</button>
-        <button class="btn btn-off" onclick="hueCmd('${uniqueid}', false)">Off</button>
+        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="hueCmd('${uniqueid}', true)">On</button>
+        <button class="btn ${!isOn?'btn-active':'btn-inactive'}" ${!isOn?'disabled':''} onclick="hueCmd('${uniqueid}', false)">Off</button>
       </div>
     </div>`
   }).join('')
 
-  // Ring lights from states
-  const ringLightStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
+  // Ring lights from states - deduplicate by name
+  const allRingLightStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
+  const ringLightNames = new Set()
+  const ringLightStates = allRingLightStates.filter(([k,v]) => {
+    const name = (v.name || '').toLowerCase()
+    if (ringLightNames.has(name)) return false
+    // Skip if a more specific entry exists with same base name
+    const isDup = allRingLightStates.some(([k2,v2]) => k2 !== k && 
+      (v2.name || '').toLowerCase().includes(name) && 
+      (v2.name || '').length > (v.name || '').length)
+    if (isDup) return false
+    ringLightNames.add(name)
+    return true
+  })
   const ringLights = ringLightStates.map(([key, s]) => {
     const isOn = s.state === 'on'
     const color = isOn ? '#4ade80' : '#374151'
@@ -1272,8 +1284,8 @@ function buildControlPage(history) {
       <div class="device-name">💡 ${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn btn-on"  onclick="ringCmd('${deviceKey}', true)">On</button>
-        <button class="btn btn-off" onclick="ringCmd('${deviceKey}', false)">Off</button>
+        <button class="btn ${isOn?'btn-active':'btn-inactive'}" ${isOn?'disabled':''} onclick="ringCmd('${deviceKey}', true)">On</button>
+        <button class="btn ${!isOn?'btn-active':'btn-inactive'}" ${!isOn?'disabled':''} onclick="ringCmd('${deviceKey}', false)">Off</button>
       </div>
     </div>`
   }).join('')
@@ -1339,6 +1351,8 @@ function buildControlPage(history) {
   .btn-group{display:flex;gap:6px}
   .btn{flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s}
   .btn:active{opacity:.7}
+  .btn-active{background:#4ade80;color:#0f172a;cursor:default;opacity:0.6}
+  .btn-inactive{background:#374151;color:#e2e8f0}
   .btn-on{background:#4ade80;color:#0f172a}
   .btn-off{background:#374151;color:#e2e8f0}
   .status{padding:8px 12px;border-radius:8px;font-size:12px;margin-top:8px;display:none}
