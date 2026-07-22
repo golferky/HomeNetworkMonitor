@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.5'
+const WATCHER_VERSION = '2026.07.21.6'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1095,7 +1095,8 @@ function getEventPriority(event) {
   return 'info'
 }
 
-const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT ?? '5558', 10)
+const DASHBOARD_PORT   = parseInt(process.env.DASHBOARD_PORT   ?? '5558', 10)
+const CONTROL_PORT     = parseInt(process.env.CONTROL_PORT     ?? '5559', 10)
 
 function buildDashboard(history, devices) {
   const states = history.states ?? {}
@@ -1201,6 +1202,192 @@ function buildDashboard(history, devices) {
 </html>`
 }
 
+async function sendHueCommand(lightId, body) {
+  const resp = await fetch(
+    `https://api.meethue.com/route/api/${HUE_USERNAME}/lights/${lightId}/state`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${hueTokenCache.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  )
+  return resp.json()
+}
+
+async function sendGoveeCommand(device, model, powerState) {
+  const resp = await fetch(`${GOVEE_API_BASE}/devices/control`, {
+    method: 'PUT',
+    headers: { 'Govee-API-Key': GOVEE_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device, model,
+      cmd: { name: 'turn', value: powerState }
+    })
+  })
+  return resp.json()
+}
+
+async function sendSmartThingsCommand(deviceId, capability, command, args = []) {
+  const token = process.env.SMARTTHINGS_TOKEN
+  const resp = await fetch(
+    `https://api.smartthings.com/v1/devices/${deviceId}/commands`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: [{ component: 'main', capability, command, arguments: args }] })
+    }
+  )
+  return resp.json()
+}
+
+function buildControlPage(history) {
+  const states = history.states ?? {}
+
+  // Build Hue light controls
+  const hueStates = Object.entries(states).filter(([k]) => k.startsWith('hue:light:'))
+  const hueLights = hueStates.map(([key, s], i) => {
+    const isOn = s.state === 'on'
+    const color = isOn ? '#4ade80' : '#374151'
+    const uniqueid = key.replace('hue:light:', '')
+    return `<div class="device-card">
+      <div class="device-name">${s.name}</div>
+      <div class="device-status" style="color:${color}">${s.state}</div>
+      <div class="btn-group">
+        <button class="btn btn-on"  onclick="hueCmd('${uniqueid}', true)">On</button>
+        <button class="btn btn-off" onclick="hueCmd('${uniqueid}', false)">Off</button>
+      </div>
+    </div>`
+  }).join('')
+
+  // SmartThings controls
+  const garageState = states['smartthings:door:da595efc-94d0-4423-8c91-c7162a3d0310']
+  const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
+  const rangeState  = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
+
+  const garageCard = garageState ? `<div class="device-card">
+    <div class="device-name">🚗 Garage Door</div>
+    <div class="device-status" style="color:${garageState.state==='active'?'#f87171':'#4ade80'}">${garageState.state==='active'?'Open':'Closed'}</div>
+    <div class="btn-group">
+      <button class="btn btn-on"  onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
+      <button class="btn btn-off" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
+    </div>
+  </div>` : ''
+
+  const lockCard = lockState ? `<div class="device-card">
+    <div class="device-name">🔐 Front Door Lock</div>
+    <div class="device-status" style="color:${lockState.state==='active'?'#f87171':'#4ade80'}">${lockState.state==='active'?'Unlocked':'Locked'}</div>
+    <div class="btn-group">
+      <button class="btn btn-on"  onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
+      <button class="btn btn-off" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
+    </div>
+  </div>` : ''
+
+  const rangeCard = rangeState ? `<div class="device-card">
+    <div class="device-name">🍳 Range</div>
+    <div class="device-status" style="color:${rangeState.state==='on'?'#f87171':'#4ade80'}">${rangeState.state}</div>
+    <div class="btn-group">
+      <button class="btn btn-off" onclick="stCmd('8184ceae-f175-b509-ab9d-bb2be1d79294','ovenOperatingState','stop')">Turn Off</button>
+    </div>
+  </div>` : ''
+
+  // Roku control
+  const rokuState = states['roku:power:192.168.1.9']
+  const rokuCard = `<div class="device-card">
+    <div class="device-name">📺 Hisense Roku TV</div>
+    <div class="device-status" style="color:${rokuState?.state==='on'?'#4ade80':'#374151'}">${rokuState?.state ?? 'unknown'}</div>
+    <div class="btn-group">
+      <button class="btn btn-off" onclick="rokuCmd('keypress/PowerOff')">Power Off</button>
+    </div>
+  </div>`
+
+  const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Home Control</title>
+<style>
+  body{background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;margin:0;padding:16px}
+  h1{color:#7c6af7;margin:0 0 4px;font-size:22px}
+  .sub{color:#64748b;font-size:12px;margin-bottom:20px}
+  h2{color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .device-card{background:#1e293b;border-radius:12px;padding:14px;border:1px solid #334155}
+  .device-name{font-size:13px;font-weight:600;margin-bottom:4px}
+  .device-status{font-size:11px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+  .btn-group{display:flex;gap:6px}
+  .btn{flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s}
+  .btn:active{opacity:.7}
+  .btn-on{background:#4ade80;color:#0f172a}
+  .btn-off{background:#374151;color:#e2e8f0}
+  .status{padding:8px 12px;border-radius:8px;font-size:12px;margin-top:8px;display:none}
+  .status.show{display:block;background:#1e293b;border:1px solid #334155}
+</style>
+</head>
+<body>
+<h1>🏠 Home Control</h1>
+<div class="sub">Updated: ${now}</div>
+<div id="status" class="status"></div>
+
+<h2>Security</h2>
+<div class="grid">${garageCard}${lockCard}</div>
+
+<h2>Hue Lights</h2>
+<div class="grid">${hueLights}</div>
+
+<h2>Appliances</h2>
+<div class="grid">${rangeCard}${rokuCard}</div>
+
+<script>
+async function hueCmd(uniqueid, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/hue', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ uniqueid, on })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+  setTimeout(() => location.reload(), 1000)
+}
+
+async function stCmd(deviceId, capability, command) {
+  showStatus('Sending...')
+  const r = await fetch('/control/smartthings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ deviceId, capability, command })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+  setTimeout(() => location.reload(), 2000)
+}
+
+async function rokuCmd(path) {
+  showStatus('Sending...')
+  const r = await fetch('/control/roku', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ path })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('status')
+  el.textContent = msg
+  el.className = 'status show'
+}
+</script>
+</body>
+</html>`
+}
+
 function startDashboard() {
   const server = http.createServer((req, res) => {
     if (req.url !== '/' && req.url !== '/dashboard') { res.writeHead(404); res.end(); return }
@@ -1217,6 +1404,60 @@ function startDashboard() {
   server.listen(DASHBOARD_PORT, () => console.log(`Dashboard at http://192.168.1.190:${DASHBOARD_PORT}`))
 }
 
+function startControlServer() {
+  const server = http.createServer(async (req, res) => {
+    const send = (data) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)) }
+
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
+      try {
+        const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+        const html = buildControlPage(history)
+        res.writeHead(200, {'Content-Type':'text/html'})
+        res.end(html)
+      } catch(e) { res.writeHead(500); res.end('Error: ' + e.message) }
+      return
+    }
+
+    if (req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          const data = JSON.parse(body)
+
+          if (req.url === '/control/hue') {
+            // Find light by uniqueid
+            const lights = await fetch(
+              `https://api.meethue.com/route/api/${HUE_USERNAME}/lights`,
+              { headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}` } }
+            ).then(r => r.json())
+            const lightId = Object.keys(lights).find(id => lights[id].uniqueid === data.uniqueid)
+            if (!lightId) return send({ ok: false, error: 'Light not found' })
+            await sendHueCommand(lightId, { on: data.on })
+            send({ ok: true })
+          }
+
+          else if (req.url === '/control/smartthings') {
+            await sendSmartThingsCommand(data.deviceId, data.capability, data.command)
+            send({ ok: true })
+          }
+
+          else if (req.url === '/control/roku') {
+            await fetch(`http://192.168.1.9:8060/${data.path}`, { method: 'POST' })
+            send({ ok: true })
+          }
+
+          else { res.writeHead(404); res.end() }
+        } catch(e) { send({ ok: false, error: e.message }) }
+      })
+      return
+    }
+
+    res.writeHead(404); res.end()
+  })
+  server.listen(CONTROL_PORT, () => console.log(`Control panel at http://192.168.1.190:${CONTROL_PORT}`))
+}
+
 async function main() {
   console.log(`Home Event Watcher v${WATCHER_VERSION}`)
   console.log(`Polling every ${INTERVAL_SECONDS}s; cause window ${CAUSE_WINDOW_SECONDS}s.`)
@@ -1230,6 +1471,7 @@ async function main() {
   ringApi.onRefreshTokenUpdated.subscribe(({ newRefreshToken }) => saveToken(newRefreshToken))
   if (!RUN_ONCE) startHueWebhookListener()
   if (!RUN_ONCE) startDashboard()
+  if (!RUN_ONCE) startControlServer()
 
   do {
     try {
