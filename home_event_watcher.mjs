@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.4'
+const WATCHER_VERSION = '2026.07.21.5'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -522,16 +522,25 @@ const btFailures = new Map()
 // Store latest battery levels for dashboard
 const batteryCache = new Map()
 
-function parseBtBattery(snippet) {
+function parseBtBattery(snippet, deviceName) {
   const batteries = {}
   const left  = snippet.match(/Left Battery Level:\s*(\d+)%/)
   const right = snippet.match(/Right Battery Level:\s*(\d+)%/)
   const cas   = snippet.match(/Case Battery Level:\s*(\d+)%/)
-  const watch = snippet.match(/Battery Level:\s*(\d+)%/)
+  const gen   = snippet.match(/Battery Level:\s*(\d+)%/)
   if (left)  batteries.left  = parseInt(left[1])
   if (right) batteries.right = parseInt(right[1])
   if (cas)   batteries.case  = parseInt(cas[1])
-  if (watch && !left) batteries.watch = parseInt(watch[1])
+  // Only use generic Battery Level for actual watches/wearables, not laptops/mice
+  if (gen && !left) {
+    const name = (deviceName || '').toLowerCase()
+    const isWearable = name.includes('watch') || name.includes('band')
+    const isMouse = name.includes('mouse') || name.includes('ergo') || name.includes('mx')
+    const isLaptop = name.includes('macbook') || name.includes('laptop')
+    if (isWearable) batteries.watch = parseInt(gen[1])
+    else if (isMouse) batteries.mouse = parseInt(gen[1])
+    else if (!isLaptop) batteries.device = parseInt(gen[1])
+  }
   return Object.keys(batteries).length ? batteries : null
 }
 
@@ -1096,7 +1105,14 @@ function buildDashboard(history, devices) {
   // Bluetooth batteries
   const btBattRows = [...batteryCache.values()].map(b => {
     const pct = (v) => v != null ? `<span style="color:${v<20?'#f87171':v<50?'#fbbf24':'#4ade80'}">${v}%</span>` : ''
-    const parts = [pct(b.left) ? `L:${pct(b.left)}` : '', pct(b.right) ? `R:${pct(b.right)}` : '', pct(b.case) ? `Case:${pct(b.case)}` : '', pct(b.watch) ? `${pct(b.watch)}` : ''].filter(Boolean).join(' ')
+    const parts = [
+      b.left   != null ? `L:${pct(b.left)}`     : '',
+      b.right  != null ? `R:${pct(b.right)}`    : '',
+      b.case   != null ? `Case:${pct(b.case)}`  : '',
+      b.watch  != null ? `⌚${pct(b.watch)}`    : '',
+      b.mouse  != null ? `🖱️${pct(b.mouse)}`   : '',
+      b.device != null ? `${pct(b.device)}`     : '',
+    ].filter(Boolean).join(' ')
     return `<tr><td>Bluetooth</td><td>${b.name}</td><td>${parts}</td></tr>`
   }).join('')
 
