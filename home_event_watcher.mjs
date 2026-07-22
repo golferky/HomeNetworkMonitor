@@ -1505,7 +1505,7 @@ function startControlServer() {
                   const keyLower = (data.deviceKey || '').toLowerCase()
                   if (nameLower.includes(keyLower) || keyLower.includes(nameLower)) {
                     const lightMode = data.on ? 'on' : 'default'
-                    await device.sendCommand('light-mode.set', { lightMode, duration: data.on ? 60 : 0 })
+                    await device.sendCommand('light-mode.set', { lightMode, duration: 0 })
                     found = true
                     break
                   }
