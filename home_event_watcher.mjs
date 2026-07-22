@@ -1365,7 +1365,7 @@ function buildControlPage(history) {
 </head>
 <body>
 <h1>🏠 Home Control</h1>
-<div class="sub">Updated: ${now}</div>
+<div class="sub">Updated: ${now} · v${WATCHER_VERSION}</div>
 <div id="status" class="status"></div>
 
 <button class="btn-all-off" onclick="allLightsOff()">💡 All Lights Off</button>
