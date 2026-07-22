@@ -24,7 +24,7 @@ async function runSpeedTest(iface) {
   console.log(`Testing ${iface.name} (${iface.source})...`)
   try {
     const { stdout } = await execAsync(
-      `speedtest-cli --source ${iface.source} --simple`,
+      `/opt/homebrew/bin/speedtest-cli --source ${iface.source} --simple`,
       { timeout: 120000 }
     )
     const ping     = parseFloat(stdout.match(/Ping:\s+([\d.]+)/)?.[1])
@@ -38,10 +38,29 @@ async function runSpeedTest(iface) {
   }
 }
 
+async function scanNetwork(subnet) {
+  try {
+    const { stdout } = await execAsync(`arp -a | grep "${subnet}"`, { timeout: 10000 })
+    const devices = []
+    for (const line of stdout.split('\n')) {
+      const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-f:]+)/i)
+      if (!m) continue
+      const ip  = m[1]
+      const mac = m[2]
+      if (mac === 'ff:ff:ff:ff:ff:ff' || mac === '(incomplete)') continue
+      devices.push({ ip, mac })
+    }
+    return devices
+  } catch(e) { return [] }
+}
+
 async function runTests() {
   const log = loadLog()
   const timestamp = new Date().toISOString()
-  const entry = { timestamp, results: {} }
+  const altaDevices = await scanNetwork('192.168.1.')
+  const tmobDevices = await scanNetwork('192.168.12.')
+  console.log(`AltaFiber devices: ${altaDevices.length} | T-Mobile devices: ${tmobDevices.length}`)
+  const entry = { timestamp, results: {}, devices: { altafiber: altaDevices, tmobile: tmobDevices } }
 
   for (const [key, iface] of Object.entries(INTERFACES)) {
     entry.results[key] = await runSpeedTest(iface)
@@ -87,6 +106,45 @@ function startDashboard() {
     const lastTime = last ? new Date(last.timestamp).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true }) : 'Never'
 
     // Chart data - last 20 tests
+    // Device history - unique devices seen on each network
+    const altaDeviceSeen = {}
+    const tmobDeviceSeen = {}
+    for (const t of tests) {
+      for (const d of (t.devices?.altafiber || [])) {
+        if (!altaDeviceSeen[d.mac]) altaDeviceSeen[d.mac] = { ...d, firstSeen: t.timestamp, lastSeen: t.timestamp, count: 0 }
+        altaDeviceSeen[d.mac].lastSeen = t.timestamp
+        altaDeviceSeen[d.mac].count++
+      }
+      for (const d of (t.devices?.tmobile || [])) {
+        if (!tmobDeviceSeen[d.mac]) tmobDeviceSeen[d.mac] = { ...d, firstSeen: t.timestamp, lastSeen: t.timestamp, count: 0 }
+        tmobDeviceSeen[d.mac].lastSeen = t.timestamp
+        tmobDeviceSeen[d.mac].count++
+      }
+    }
+
+    // Look up device names from devices.json
+    let deviceNames = {}
+    try {
+      const devReg = JSON.parse(readFileSync('/Users/garyscudder/epg/devices.json', 'utf-8')).devices
+      devReg.forEach(d => { deviceNames[d.mac.toLowerCase()] = d.name })
+    } catch(e) {}
+
+    function deviceName(mac) {
+      return deviceNames[mac.toLowerCase()] || deviceNames[mac] || 'Unknown'
+    }
+
+    function formatTime(iso) {
+      return new Date(iso).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
+    }
+
+    const altaDeviceRows = Object.values(altaDeviceSeen).map(d =>
+      `<tr><td>${deviceName(d.mac)}</td><td style="font-size:10px;color:#64748b">${d.mac}</td><td>${d.ip}</td><td>${formatTime(d.lastSeen)}</td><td>${d.count}</td></tr>`
+    ).join('')
+
+    const tmobDeviceRows = Object.values(tmobDeviceSeen).map(d =>
+      `<tr><td>${deviceName(d.mac)}</td><td style="font-size:10px;color:#64748b">${d.mac}</td><td>${d.ip}</td><td>${formatTime(d.lastSeen)}</td><td>${d.count}</td></tr>`
+    ).join('')
+
     const recent = tests.slice(-20)
     const labels = recent.map(t => new Date(t.timestamp).toLocaleString('en-US', { month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true }))
     const altaDowns = recent.map(t => t.results.altafiber?.download ?? null)
@@ -186,6 +244,22 @@ new Chart(document.getElementById('chart'), {
   }
 })
 </script>
+<h2>AltaFiber Connected Devices</h2>
+<div class="chart-wrap">
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr><th style="text-align:left;color:#64748b;padding:4px">Name</th><th style="text-align:left;color:#64748b;padding:4px">MAC</th><th style="text-align:left;color:#64748b;padding:4px">IP</th><th style="text-align:left;color:#64748b;padding:4px">Last Seen</th><th style="text-align:left;color:#64748b;padding:4px">Seen</th></tr>
+    \${altaDeviceRows}
+  </table>
+</div>
+
+<h2>T-Mobile Connected Devices</h2>
+<div class="chart-wrap">
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr><th style="text-align:left;color:#64748b;padding:4px">Name</th><th style="text-align:left;color:#64748b;padding:4px">MAC</th><th style="text-align:left;color:#64748b;padding:4px">IP</th><th style="text-align:left;color:#64748b;padding:4px">Last Seen</th><th style="text-align:left;color:#64748b;padding:4px">Seen</th></tr>
+    \${tmobDeviceRows}
+  </table>
+</div>
+
 </body>
 </html>`
 
