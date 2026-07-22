@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.1'
+const WATCHER_VERSION = '2026.07.22.2'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1033,6 +1033,7 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timer]).finally(() => clearTimeout(timeout))
 }
 
+let ringApiInstance = null
 const HUE_WEBHOOK_PORT = parseInt(process.env.HUE_WEBHOOK_PORT ?? '5555', 10)
 const pendingHueEvents = []
 
@@ -1352,11 +1353,8 @@ function buildControlPage(history) {
 <h2>Security</h2>
 <div class="grid">${garageCard}${lockCard}</div>
 
-<h2>Hue Lights</h2>
-<div class="grid">${hueLights}</div>
-
-<h2>Ring Lights</h2>
-<div class="grid">${ringLights}</div>
+<h2>Lights</h2>
+<div class="grid">${hueLights}${ringLights}</div>
 
 <h2>TVs</h2>
 <div class="grid">${rokuCard}</div>
@@ -1481,6 +1479,29 @@ function startControlServer() {
             send({ ok: true })
           }
 
+          else if (req.url === '/control/ring') {
+            // Ring light control via ring-client-api
+            try {
+              const locations = await ringApiInstance.getLocations()
+              let found = false
+              for (const location of locations) {
+                const devices = await location.getDevices()
+                for (const device of devices) {
+                  const key = `${device.data.deviceType}:${device.data.name}`.toLowerCase().replace(/[^a-z0-9:]/g, ' ').trim()
+                  if (key.includes(data.deviceKey) || data.deviceKey.includes(device.data.name.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim())) {
+                    await device.setInfo({ led: { on: data.on } })
+                    found = true
+                    break
+                  }
+                }
+                if (found) break
+              }
+              send({ ok: found, error: found ? null : 'Device not found' })
+            } catch(e) {
+              send({ ok: false, error: e.message })
+            }
+          }
+
           else { res.writeHead(404); res.end() }
         } catch(e) { send({ ok: false, error: e.message }) }
       })
@@ -1502,6 +1523,7 @@ async function main() {
     locationModePollingSeconds: 20,
   })
 
+  ringApiInstance = ringApi
   ringApi.onRefreshTokenUpdated.subscribe(({ newRefreshToken }) => saveToken(newRefreshToken))
   if (!RUN_ONCE) startHueWebhookListener()
   if (!RUN_ONCE) startDashboard()
