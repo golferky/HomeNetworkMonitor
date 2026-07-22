@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.17'
+const WATCHER_VERSION = '2026.07.22.18'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1295,21 +1295,23 @@ function buildControlPage(history) {
   const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
   const rangeState  = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
 
+  const garageOpen = garageState?.state === 'active'
   const garageCard = garageState ? `<div class="device-card">
     <div class="device-name">🚗 Garage Door</div>
-    <div class="device-status" style="color:${garageState.state==='active'?'#f87171':'#4ade80'}">${garageState.state==='active'?'Open':'Closed'}</div>
+    <div class="device-status" style="color:${garageOpen?'#f87171':'#4ade80'}">${garageOpen?'Open':'Closed'}</div>
     <div class="btn-group">
-      <button class="btn btn-on"  onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
-      <button class="btn btn-off" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
+      <button class="btn ${garageOpen?'btn-active':'btn-inactive'}" ${garageOpen?'disabled':''} onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
+      <button class="btn ${garageOpen?'btn-inactive':'btn-active'}" ${!garageOpen?'disabled':''} onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
     </div>
   </div>` : ''
 
+  const lockUnlocked = lockState?.state === 'active'
   const lockCard = lockState ? `<div class="device-card">
     <div class="device-name">🔐 Front Door Lock</div>
-    <div class="device-status" style="color:${lockState.state==='active'?'#f87171':'#4ade80'}">${lockState.state==='active'?'Unlocked':'Locked'}</div>
+    <div class="device-status" style="color:${lockUnlocked?'#f87171':'#4ade80'}">${lockUnlocked?'Unlocked':'Locked'}</div>
     <div class="btn-group">
-      <button class="btn btn-on"  onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
-      <button class="btn btn-off" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
+      <button class="btn ${lockUnlocked?'btn-active':'btn-inactive'}" ${lockUnlocked?'disabled':''} onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
+      <button class="btn ${lockUnlocked?'btn-inactive':'btn-active'}" ${!lockUnlocked?'disabled':''} onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
     </div>
   </div>` : ''
 
