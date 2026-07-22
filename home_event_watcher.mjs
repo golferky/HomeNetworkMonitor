@@ -1503,10 +1503,13 @@ function startControlServer() {
               for (const location of locations) {
                 const devices = await location.getDevices()
                 for (const device of devices) {
-                  const nameLower = (device.data.name || '').toLowerCase()
-                  const keyLower = (data.deviceKey || '').toLowerCase()
-                  if (nameLower.includes(keyLower) || keyLower.includes(nameLower)) {
+                  const nameLower = (device.data.name || '').toLowerCase().trim()
+                  const keyLower = (data.deviceKey || '').toLowerCase().trim()
+                  // Match by exact name or key contains name
+                  if (nameLower === keyLower || keyLower === nameLower ||
+                      keyLower.startsWith(nameLower) || nameLower.startsWith(keyLower)) {
                     const lightMode = data.on ? 'on' : 'default'
+                    console.log(`Ring control: ${device.data.name} -> lightMode: ${lightMode}`)
                     await device.sendCommand('light-mode.set', { lightMode, duration: 0 })
                     found = true
                     break
