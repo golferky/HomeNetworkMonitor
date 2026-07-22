@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.21.6'
+const WATCHER_VERSION = '2026.07.22.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1261,6 +1261,22 @@ function buildControlPage(history) {
     </div>`
   }).join('')
 
+  // Ring lights from states
+  const ringLightStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
+  const ringLights = ringLightStates.map(([key, s]) => {
+    const isOn = s.state === 'on'
+    const color = isOn ? '#4ade80' : '#374151'
+    const deviceKey = key.replace('ring:light:', '')
+    return `<div class="device-card">
+      <div class="device-name">💡 ${s.name}</div>
+      <div class="device-status" style="color:${color}">${s.state}</div>
+      <div class="btn-group">
+        <button class="btn btn-on"  onclick="ringCmd('${deviceKey}', true)">On</button>
+        <button class="btn btn-off" onclick="ringCmd('${deviceKey}', false)">Off</button>
+      </div>
+    </div>`
+  }).join('')
+
   // SmartThings controls
   const garageState = states['smartthings:door:da595efc-94d0-4423-8c91-c7162a3d0310']
   const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
@@ -1339,8 +1355,14 @@ function buildControlPage(history) {
 <h2>Hue Lights</h2>
 <div class="grid">${hueLights}</div>
 
+<h2>Ring Lights</h2>
+<div class="grid">${ringLights}</div>
+
+<h2>TVs</h2>
+<div class="grid">${rokuCard}</div>
+
 <h2>Appliances</h2>
-<div class="grid">${rangeCard}${rokuCard}</div>
+<div class="grid">${rangeCard}</div>
 
 <script>
 async function hueCmd(uniqueid, on) {
@@ -1376,6 +1398,18 @@ async function rokuCmd(path) {
   })
   const d = await r.json()
   showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function ringCmd(deviceKey, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/ring', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ deviceKey, on })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '\u2713 Done' : '\u2717 ' + d.error)
+  setTimeout(() => location.reload(), 1000)
 }
 
 function showStatus(msg) {
