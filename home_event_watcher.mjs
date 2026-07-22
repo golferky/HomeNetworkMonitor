@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.21'
+const WATCHER_VERSION = '2026.07.22.22'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1262,6 +1262,24 @@ function buildControlPage(history) {
     </div>`
   }).join('')
 
+  // Govee lights from states
+  const goveeStates = Object.entries(states).filter(([k,v]) => k.startsWith('govee:') && v.category === 'Light')
+  const goveeLights = goveeStates.map(([key, s]) => {
+    const isOn = s.state === 'on'
+    const color = isOn ? '#4ade80' : '#374151'
+    const deviceId = key.replace('govee:', '').split(':').map((p,i) => i===0?p:p).join(':')
+    // Govee device MAC from key e.g. govee:15:03:dd:99:83:46:67:49
+    const mac = key.replace('govee:', '').toUpperCase()
+    return `<div class="device-card" data-govee-id="${mac}">
+      <div class="device-name">💡 ${s.name}</div>
+      <div class="device-status" style="color:${color}">${s.state}</div>
+      <div class="btn-group">
+        <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="goveeCmd('${mac}', true)">On</button>
+        <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="goveeCmd('${mac}', false)">Off</button>
+      </div>
+    </div>`
+  }).join('')
+
   // Ring lights from states - deduplicate by name
   const allRingLightStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
   const ringLightNames = new Set()
@@ -1376,7 +1394,7 @@ function buildControlPage(history) {
 <div class="grid">${garageCard}${lockCard}</div>
 
 <h2>Lights</h2>
-<div class="grid">${hueLights}${ringLights}</div>
+<div class="grid">${hueLights}${ringLights}${goveeLights}</div>
 
 <h2>TVs</h2>
 <div class="grid">${rokuCard}</div>
@@ -1385,6 +1403,17 @@ function buildControlPage(history) {
 <div class="grid">${rangeCard}</div>
 
 <script>
+async function goveeCmd(mac, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/govee', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ device: mac, model: '', on })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '\u2713 Done' : '\u2717 ' + d.error)
+}
+
 async function allLightsOff() {
   showStatus('Turning all lights off...')
   const promises = []
@@ -1398,6 +1427,12 @@ async function allLightsOff() {
     promises.push(fetch('/control/ring', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ deviceKey: el.dataset.ringKey, on: false })
+    }))
+  })
+  document.querySelectorAll('[data-govee-id]').forEach(el => {
+    promises.push(fetch('/control/govee', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ device: el.dataset.goveeId, model: '', on: false })
     }))
   })
   await Promise.all(promises)
@@ -1547,6 +1582,29 @@ function startControlServer() {
           else if (req.url === '/control/roku') {
             await fetch(`http://192.168.1.9:8060/${data.path}`, { method: 'POST' })
             send({ ok: true })
+          }
+
+          else if (req.url === '/control/govee') {
+            try {
+              const { device, model, on } = data
+              const resp = await fetch(`${GOVEE_API_BASE}/devices/control`, {
+                method: 'PUT',
+                headers: { 'Govee-API-Key': GOVEE_API_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device, model, cmd: { name: 'turn', value: on ? 'on' : 'off' } })
+              })
+              const result = await resp.json()
+              // Optimistically update history
+              try {
+                const hist = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+                const stateKey = Object.keys(hist.states || {}).find(k => k.includes(device.toLowerCase().replace(/:/g,':')))
+                if (stateKey) {
+                  hist.states[stateKey].state = on ? 'on' : 'off'
+                  hist.states[stateKey].lastChangedAt = new Date().toISOString()
+                  writeFileSync(HISTORY_FILE, JSON.stringify(hist, null, 2))
+                }
+              } catch(e) {}
+              send({ ok: result.code === 200 })
+            } catch(e) { send({ ok: false, error: e.message }) }
           }
 
           else if (req.url === '/control/ring') {
