@@ -1511,6 +1511,8 @@ function startControlServer() {
                     const lightMode = data.on ? 'on' : 'default'
                     console.log(`Ring control: ${device.data.name} -> lightMode: ${lightMode}`)
                     await device.sendCommand('light-mode.set', { lightMode, duration: 0 })
+                    // Wait briefly then force a poll to update history
+                    setTimeout(() => poll(ringApiInstance).catch(() => {}), 3000)
                     found = true
                     break
                   }
