@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.19'
+const WATCHER_VERSION = '2026.07.22.20'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1256,8 +1256,8 @@ function buildControlPage(history) {
       <div class="device-name">${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn btn-on" onclick="hueCmd('${uniqueid}', true)">On</button>
-        <button class="btn btn-on" onclick="hueCmd('${uniqueid}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="hueCmd('${uniqueid}', true)">On</button>
+        <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="hueCmd('${uniqueid}', false)">Off</button>
       </div>
     </div>`
   }).join('')
@@ -1284,8 +1284,8 @@ function buildControlPage(history) {
       <div class="device-name">💡 ${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
-        <button class="btn btn-on" onclick="ringCmd('${deviceKey}', true)">On</button>
-        <button class="btn btn-on" onclick="ringCmd('${deviceKey}', false)">Off</button>
+        <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="ringCmd('${deviceKey}', true)">On</button>
+        <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="ringCmd('${deviceKey}', false)">Off</button>
       </div>
     </div>`
   }).join('')
@@ -1300,8 +1300,8 @@ function buildControlPage(history) {
     <div class="device-name">🚗 Garage Door</div>
     <div class="device-status" style="color:${garageOpen?'#f87171':'#4ade80'}">${garageOpen?'Open':'Closed'}</div>
     <div class="btn-group">
-      <button class="btn btn-on" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
-      <button class="btn btn-on" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
+      <button class="btn ${garageOpen?'btn-inactive':'btn-on'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
+      <button class="btn ${garageOpen?'btn-on':'btn-inactive'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
     </div>
   </div>` : ''
 
@@ -1310,8 +1310,8 @@ function buildControlPage(history) {
     <div class="device-name">🔐 Front Door Lock</div>
     <div class="device-status" style="color:${lockUnlocked?'#f87171':'#4ade80'}">${lockUnlocked?'Unlocked':'Locked'}</div>
     <div class="btn-group">
-      <button class="btn btn-on" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
-      <button class="btn btn-on" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
+      <button class="btn ${lockUnlocked?'btn-inactive':'btn-on'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
+      <button class="btn ${lockUnlocked?'btn-on':'btn-inactive'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
     </div>
   </div>` : ''
 
