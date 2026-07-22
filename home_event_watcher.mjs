@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.8'
+const WATCHER_VERSION = '2026.07.22.17'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1357,6 +1357,8 @@ function buildControlPage(history) {
   .btn-off{background:#374151;color:#e2e8f0}
   .btn-all-off{width:100%;padding:12px;background:#f87171;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:16px}
   .btn-all-off:active{opacity:.7}
+  .btn-all-off{width:100%;padding:12px;background:#f87171;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:16px}
+  .btn-all-off:active{opacity:.7}
   .status{padding:8px 12px;border-radius:8px;font-size:12px;margin-top:8px;display:none}
   .status.show{display:block;background:#1e293b;border:1px solid #334155}
 </style>
@@ -1365,6 +1367,8 @@ function buildControlPage(history) {
 <h1>🏠 Home Control</h1>
 <div class="sub">Updated: ${now}</div>
 <div id="status" class="status"></div>
+
+<button class="btn-all-off" onclick="allLightsOff()">💡 All Lights Off</button>
 
 <h2>Security</h2>
 <div class="grid">${garageCard}${lockCard}</div>
@@ -1379,6 +1383,25 @@ function buildControlPage(history) {
 <div class="grid">${rangeCard}</div>
 
 <script>
+async function allLightsOff() {
+  showStatus('Turning all lights off...')
+  const promises = []
+  document.querySelectorAll('[data-hue-id]').forEach(el => {
+    promises.push(fetch('/control/hue', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ uniqueid: el.dataset.hueId, on: false })
+    }))
+  })
+  document.querySelectorAll('[data-ring-key]').forEach(el => {
+    promises.push(fetch('/control/ring', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ deviceKey: el.dataset.ringKey, on: false })
+    }))
+  })
+  await Promise.all(promises)
+  showStatus('\u2713 All lights off')
+}
+
 async function hueCmd(uniqueid, on) {
   showStatus('Sending...')
   const r = await fetch('/control/hue', {
