@@ -1252,7 +1252,7 @@ function buildControlPage(history) {
     const isOn = s.state === 'on'
     const color = isOn ? '#4ade80' : '#374151'
     const uniqueid = key.replace('hue:light:', '')
-    return `<div class="device-card">
+    return `<div class="device-card" data-hue-id="${uniqueid}">
       <div class="device-name">${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
@@ -1280,7 +1280,7 @@ function buildControlPage(history) {
     const isOn = s.state === 'on'
     const color = isOn ? '#4ade80' : '#374151'
     const deviceKey = key.replace('ring:light:', '')
-    return `<div class="device-card">
+    return `<div class="device-card" data-ring-key="${deviceKey}">
       <div class="device-name">💡 ${s.name}</div>
       <div class="device-status" style="color:${color}">${s.state}</div>
       <div class="btn-group">
@@ -1355,6 +1355,8 @@ function buildControlPage(history) {
   .btn-inactive{background:#374151;color:#e2e8f0}
   .btn-on{background:#4ade80;color:#0f172a}
   .btn-off{background:#374151;color:#e2e8f0}
+  .btn-all-off{width:100%;padding:12px;background:#f87171;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:16px}
+  .btn-all-off:active{opacity:.7}
   .status{padding:8px 12px;border-radius:8px;font-size:12px;margin-top:8px;display:none}
   .status.show{display:block;background:#1e293b;border:1px solid #334155}
 </style>
