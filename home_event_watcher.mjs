@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.2'
+const WATCHER_VERSION = '2026.07.22.4'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1304,9 +1304,9 @@ function buildControlPage(history) {
   const rangeCard = rangeState ? `<div class="device-card">
     <div class="device-name">🍳 Range</div>
     <div class="device-status" style="color:${rangeState.state==='on'?'#f87171':'#4ade80'}">${rangeState.state}</div>
-    <div class="btn-group">
+    ${rangeState.state === 'on' ? `<div class="btn-group">
       <button class="btn btn-off" onclick="stCmd('8184ceae-f175-b509-ab9d-bb2be1d79294','ovenOperatingState','stop')">Turn Off</button>
-    </div>
+    </div>` : '<div style="color:#64748b;font-size:11px">No action needed</div>'}
   </div>` : ''
 
   // Roku control
@@ -1314,9 +1314,9 @@ function buildControlPage(history) {
   const rokuCard = `<div class="device-card">
     <div class="device-name">📺 Hisense Roku TV</div>
     <div class="device-status" style="color:${rokuState?.state==='on'?'#4ade80':'#374151'}">${rokuState?.state ?? 'unknown'}</div>
-    <div class="btn-group">
+    ${rokuState?.state === 'on' ? `<div class="btn-group">
       <button class="btn btn-off" onclick="rokuCmd('keypress/PowerOff')">Power Off</button>
-    </div>
+    </div>` : '<div style="color:#64748b;font-size:11px">TV is off</div>'}
   </div>`
 
   const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
@@ -1480,16 +1480,18 @@ function startControlServer() {
           }
 
           else if (req.url === '/control/ring') {
-            // Ring light control via ring-client-api
             try {
+              if (!ringApiInstance) return send({ ok: false, error: 'Ring API not ready' })
               const locations = await ringApiInstance.getLocations()
               let found = false
               for (const location of locations) {
                 const devices = await location.getDevices()
                 for (const device of devices) {
-                  const key = `${device.data.deviceType}:${device.data.name}`.toLowerCase().replace(/[^a-z0-9:]/g, ' ').trim()
-                  if (key.includes(data.deviceKey) || data.deviceKey.includes(device.data.name.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim())) {
-                    await device.setInfo({ led: { on: data.on } })
+                  const nameLower = (device.data.name || '').toLowerCase()
+                  const keyLower = (data.deviceKey || '').toLowerCase()
+                  if (nameLower.includes(keyLower) || keyLower.includes(nameLower)) {
+                    const lightMode = data.on ? 'on' : 'default'
+                    await device.sendCommand('light-mode.set', { lightMode, duration: data.on ? 60 : 0 })
                     found = true
                     break
                   }
