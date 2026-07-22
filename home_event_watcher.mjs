@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.22'
+const WATCHER_VERSION = '2026.07.22.23'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1034,6 +1034,16 @@ function withTimeout(promise, ms, label) {
 }
 
 let ringApiInstance = null
+const GOVEE_MODELS = {
+  '15:03:DD:99:83:46:67:49': 'H6076',
+  '19:D2:D0:03:C1:46:2F:0D': 'H6076',
+  'E2:D9:98:17:3C:DF:5D:80': 'H6008',
+}
+const GOVEE_MODELS = {
+  '15:03:DD:99:83:46:67:49': 'H6076',
+  '19:D2:D0:03:C1:46:2F:0D': 'H6076',
+  'E2:D9:98:17:3C:DF:5D:80': 'H6008',
+}
 const HUE_WEBHOOK_PORT = parseInt(process.env.HUE_WEBHOOK_PORT ?? '5555', 10)
 const pendingHueEvents = []
 
@@ -1587,12 +1597,16 @@ function startControlServer() {
           else if (req.url === '/control/govee') {
             try {
               const { device, model, on } = data
+              const model = GOVEE_MODELS[device] || data.model || ''
+              const model = GOVEE_MODELS[device] || data.model || ''
               const resp = await fetch(`${GOVEE_API_BASE}/devices/control`, {
                 method: 'PUT',
                 headers: { 'Govee-API-Key': GOVEE_API_KEY, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device, model, cmd: { name: 'turn', value: on ? 'on' : 'off' } })
               })
               const result = await resp.json()
+              console.log('Govee control result:', JSON.stringify(result))
+              console.log('Govee control result:', JSON.stringify(result))
               // Optimistically update history
               try {
                 const hist = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
