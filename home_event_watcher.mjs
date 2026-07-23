@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.12'
+const WATCHER_VERSION = '2026.07.23.13'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1718,6 +1718,320 @@ function startControlServer() {
   const server = http.createServer(async (req, res) => {
     const send = (data) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)) }
 
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
+      try {
+        const html = readFileSync('/Users/garyscudder/epg/control_page.html', 'utf-8')
+        res.writeHead(200, {'Content-Type':'text/html'})
+        res.end(html)
+      } catch(e) { res.writeHead(500); res.end('Error: ' + e.message) }
+      return
+    }
+
+    if (req.method === 'GET' && req.url === '/control/data') {
+      try {
+        const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+        const states = history.states ?? {}
+        const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
+
+        // Build security tab
+        const garageState = states['smartthings:door:da595efc-94d0-4423-8c91-c7162a3d0310']
+        const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
+        const garageOpen  = garageState?.state === 'active'
+        const lockUnlocked = lockState?.state === 'active'
+
+        const security = `<div class="grid">
+          ${garageState ? `<div class="device-card">
+            <div class="device-name">🚗 Garage Door</div>
+            <div class="device-status" style="color:${garageOpen?'#f87171':'#4ade80'}">${garageOpen?'OPEN':'CLOSED'}</div>
+            <div class="btn-group">
+              <button class="btn ${garageOpen?'btn-inactive':'btn-on'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
+              <button class="btn ${garageOpen?'btn-on':'btn-inactive'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
+            </div></div>` : ''}
+          ${lockState ? `<div class="device-card">
+            <div class="device-name">🔐 Front Door Lock</div>
+            <div class="device-status" style="color:${lockUnlocked?'#f87171':'#4ade80'}">${lockUnlocked?'UNLOCKED':'LOCKED'}</div>
+            <div class="btn-group">
+              <button class="btn ${lockUnlocked?'btn-inactive':'btn-on'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
+              <button class="btn ${lockUnlocked?'btn-on':'btn-inactive'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
+            </div></div>` : ''}
+        </div>`
+
+        // Build lights tab
+        const hueStates = Object.entries(states).filter(([k]) => k.startsWith('hue:light:'))
+        const hueLights = hueStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const uniqueid = key.replace('hue:light:','')
+          return `<div class="device-card" data-hue-id="${uniqueid}">
+            <div class="device-name">${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="hueCmd('${uniqueid}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="hueCmd('${uniqueid}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const allRingStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
+        const ringNames = new Set()
+        const ringStates = allRingStates.filter(([k,v]) => {
+          const name = (v.name||'').toLowerCase()
+          if (ringNames.has(name)) return false
+          const isDup = allRingStates.some(([k2,v2]) => k2!==k && (v2.name||'').toLowerCase().includes(name) && (v2.name||'').length>(v.name||'').length)
+          if (isDup) return false
+          ringNames.add(name); return true
+        })
+        const ringLights = ringStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const deviceKey = key.replace('ring:light:','')
+          return `<div class="device-card" data-ring-key="${deviceKey}">
+            <div class="device-name">💡 ${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="ringCmd('${deviceKey}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="ringCmd('${deviceKey}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const goveeStates = Object.entries(states).filter(([k,v]) => k.startsWith('govee:') && v.category === 'Light')
+        const goveeLights = goveeStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const mac = key.replace('govee:','')
+          return `<div class="device-card" data-govee-id="${mac}">
+            <div class="device-name">💡 ${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="goveeCmd('${mac}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="goveeCmd('${mac}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const lights = `<button class="btn-all-off" onclick="allLightsOff()">💡 All Lights Off</button><div class="grid">${hueLights}${ringLights}${goveeLights}</div>`
+
+        // Build climate tab
+        const thermoState = states['smartthings:thermostat:904f48c1-b6ef-4b03-b311-65a7733a967d']
+        let climate = '<p style="color:#64748b">No thermostat data</p>'
+        if (thermoState) {
+          const parts = (thermoState.state||'').split(' ')
+          const mode = parts[0]||'unknown'
+          const setpoint = parts[1] ? parseInt(parts[1]) : 70
+          const current = parts[2] ? parseInt(parts[2].replace(/[()F]/g,'')) : null
+          const isCool = mode==='cool', isHeat = mode==='heat', isOff = mode==='off'
+          climate = `<div class="device-card" style="grid-column:1/-1">
+            <div class="device-name">🌡️ Thermostat</div>
+            <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current?current+'°F current':''} · Set: ${setpoint}°F</div>
+            <div class="btn-group" style="margin-bottom:8px">
+              <button class="btn ${isCool?'btn-inactive':'btn-on'}" ${isCool?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">❄️ Cool</button>
+              <button class="btn ${isHeat?'btn-inactive':'btn-on'}" ${isHeat?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">🔥 Heat</button>
+              <button class="btn ${isOff?'btn-inactive':'btn-on'}" ${isOff?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
+                <span>60°F</span><span style="color:#e2e8f0;font-weight:700" id="spLabel">${setpoint}°F</span><span>85°F</span>
+              </div>
+              <input type="range" min="60" max="85" value="${setpoint}"
+                oninput="document.getElementById('spLabel').textContent=this.value+'°F'"
+                onchange="setpointCmd(parseInt(this.value))">
+            </div>
+          </div>`
+        }
+
+        // Build TVs tab
+        const appleTVStates = Object.entries(states).filter(([k]) => k.startsWith('appletv:') && !k.includes(':app:'))
+        const appleTVCards = appleTVStates.map(([key, s]) => {
+          const id = key.replace('appletv:','')
+          const app = states['appletv:app:'+id]?.state || ''
+          return `<div class="atv-card">
+            <div class="device-name">📺 ${s.name}</div>
+            <div class="now-playing">${app ? '▶ ' + app : 'Idle'}</div>
+            ${s.state && s.state !== 'Idle' && s.state !== 'closed' ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">${s.state}</div>` : ''}
+            <div class="btn-group">
+              <button class="btn btn-on" onclick="atvCmd('${id}','play_pause')">⏯</button>
+              <button class="btn btn-on" onclick="atvCmd('${id}','volume_up')">🔊+</button>
+              <button class="btn btn-on" onclick="atvCmd('${id}','volume_down')">🔊-</button>
+              <button class="btn btn-danger" onclick="atvCmd('${id}','turn_off')">Off</button>
+            </div>
+          </div>`
+        }).join('')
+
+        const rokuState = states['roku:power:192.168.1.9']
+        const rokuCard = `<div class="atv-card">
+          <div class="device-name">📺 Hisense Roku TV</div>
+          <div class="device-status" style="color:${rokuState?.state==='on'?'#4ade80':'#64748b'}">${rokuState?.state||'unknown'}</div>
+          ${rokuState?.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="fetch('/control/roku',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'keypress/PowerOff'})})">Power Off</button></div>` : '<div style="color:#64748b;font-size:11px">TV is off</div>'}
+        </div>`
+
+        const tvs = appleTVCards + rokuCard
+
+        // Build appliances tab
+        const rangeState = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
+        const appliances = rangeState ? `<div class="device-card">
+          <div class="device-name">🍳 Range</div>
+          <div class="device-status" style="color:${rangeState.state==='on'?'#f87171':'#4ade80'}">${rangeState.state.toUpperCase()}</div>
+          ${rangeState.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="stCmd('8184ceae-f175-b509-ab9d-bb2be1d79294','ovenOperatingState','stop')">Turn Off</button></div>` : '<div style="color:#64748b;font-size:11px">No action needed</div>'}
+        </div>` : '<p style="color:#64748b">No appliance data</p>'
+
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ now, version: WATCHER_VERSION, security, lights, climate, tvs, appliances }))
+      } catch(e) { res.writeHead(500); res.end(JSON.stringify({error: e.message})) }
+      return
+    }
+
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
+      try {
+        const html = readFileSync('/Users/garyscudder/epg/control_page.html', 'utf-8')
+        res.writeHead(200, {'Content-Type':'text/html'})
+        res.end(html)
+      } catch(e) { res.writeHead(500); res.end('Error: ' + e.message) }
+      return
+    }
+
+    if (req.method === 'GET' && req.url === '/control/data') {
+      try {
+        const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+        const states = history.states ?? {}
+        const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
+
+        // Build security tab
+        const garageState = states['smartthings:door:da595efc-94d0-4423-8c91-c7162a3d0310']
+        const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
+        const garageOpen  = garageState?.state === 'active'
+        const lockUnlocked = lockState?.state === 'active'
+
+        const security = `<div class="grid">
+          ${garageState ? `<div class="device-card">
+            <div class="device-name">🚗 Garage Door</div>
+            <div class="device-status" style="color:${garageOpen?'#f87171':'#4ade80'}">${garageOpen?'OPEN':'CLOSED'}</div>
+            <div class="btn-group">
+              <button class="btn ${garageOpen?'btn-inactive':'btn-on'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','open')">Open</button>
+              <button class="btn ${garageOpen?'btn-on':'btn-inactive'}" onclick="stCmd('da595efc-94d0-4423-8c91-c7162a3d0310','doorControl','close')">Close</button>
+            </div></div>` : ''}
+          ${lockState ? `<div class="device-card">
+            <div class="device-name">🔐 Front Door Lock</div>
+            <div class="device-status" style="color:${lockUnlocked?'#f87171':'#4ade80'}">${lockUnlocked?'UNLOCKED':'LOCKED'}</div>
+            <div class="btn-group">
+              <button class="btn ${lockUnlocked?'btn-inactive':'btn-on'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','unlock')">Unlock</button>
+              <button class="btn ${lockUnlocked?'btn-on':'btn-inactive'}" onclick="stCmd('5d9af01e-3ab3-40dc-91ec-e060ec7f801b','lock','lock')">Lock</button>
+            </div></div>` : ''}
+        </div>`
+
+        // Build lights tab
+        const hueStates = Object.entries(states).filter(([k]) => k.startsWith('hue:light:'))
+        const hueLights = hueStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const uniqueid = key.replace('hue:light:','')
+          return `<div class="device-card" data-hue-id="${uniqueid}">
+            <div class="device-name">${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="hueCmd('${uniqueid}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="hueCmd('${uniqueid}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const allRingStates = Object.entries(states).filter(([k,v]) => k.startsWith('ring:light:') && v.category === 'Light')
+        const ringNames = new Set()
+        const ringStates = allRingStates.filter(([k,v]) => {
+          const name = (v.name||'').toLowerCase()
+          if (ringNames.has(name)) return false
+          const isDup = allRingStates.some(([k2,v2]) => k2!==k && (v2.name||'').toLowerCase().includes(name) && (v2.name||'').length>(v.name||'').length)
+          if (isDup) return false
+          ringNames.add(name); return true
+        })
+        const ringLights = ringStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const deviceKey = key.replace('ring:light:','')
+          return `<div class="device-card" data-ring-key="${deviceKey}">
+            <div class="device-name">💡 ${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="ringCmd('${deviceKey}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="ringCmd('${deviceKey}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const goveeStates = Object.entries(states).filter(([k,v]) => k.startsWith('govee:') && v.category === 'Light')
+        const goveeLights = goveeStates.map(([key, s]) => {
+          const isOn = s.state === 'on'
+          const mac = key.replace('govee:','')
+          return `<div class="device-card" data-govee-id="${mac}">
+            <div class="device-name">💡 ${s.name}</div>
+            <div class="device-status" style="color:${isOn?'#4ade80':'#64748b'}">${s.state.toUpperCase()}</div>
+            <div class="btn-group">
+              <button class="btn ${isOn?'btn-inactive':'btn-on'}" onclick="goveeCmd('${mac}',true)">On</button>
+              <button class="btn ${isOn?'btn-on':'btn-inactive'}" onclick="goveeCmd('${mac}',false)">Off</button>
+            </div></div>`
+        }).join('')
+
+        const lights = `<button class="btn-all-off" onclick="allLightsOff()">💡 All Lights Off</button><div class="grid">${hueLights}${ringLights}${goveeLights}</div>`
+
+        // Build climate tab
+        const thermoState = states['smartthings:thermostat:904f48c1-b6ef-4b03-b311-65a7733a967d']
+        let climate = '<p style="color:#64748b">No thermostat data</p>'
+        if (thermoState) {
+          const parts = (thermoState.state||'').split(' ')
+          const mode = parts[0]||'unknown'
+          const setpoint = parts[1] ? parseInt(parts[1]) : 70
+          const current = parts[2] ? parseInt(parts[2].replace(/[()F]/g,'')) : null
+          const isCool = mode==='cool', isHeat = mode==='heat', isOff = mode==='off'
+          climate = `<div class="device-card" style="grid-column:1/-1">
+            <div class="device-name">🌡️ Thermostat</div>
+            <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current?current+'°F current':''} · Set: ${setpoint}°F</div>
+            <div class="btn-group" style="margin-bottom:8px">
+              <button class="btn ${isCool?'btn-inactive':'btn-on'}" ${isCool?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">❄️ Cool</button>
+              <button class="btn ${isHeat?'btn-inactive':'btn-on'}" ${isHeat?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">🔥 Heat</button>
+              <button class="btn ${isOff?'btn-inactive':'btn-on'}" ${isOff?'disabled':''} onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
+                <span>60°F</span><span style="color:#e2e8f0;font-weight:700" id="spLabel">${setpoint}°F</span><span>85°F</span>
+              </div>
+              <input type="range" min="60" max="85" value="${setpoint}"
+                oninput="document.getElementById('spLabel').textContent=this.value+'°F'"
+                onchange="setpointCmd(parseInt(this.value))">
+            </div>
+          </div>`
+        }
+
+        // Build TVs tab
+        const appleTVStates = Object.entries(states).filter(([k]) => k.startsWith('appletv:') && !k.includes(':app:'))
+        const appleTVCards = appleTVStates.map(([key, s]) => {
+          const id = key.replace('appletv:','')
+          const app = states['appletv:app:'+id]?.state || ''
+          return `<div class="atv-card">
+            <div class="device-name">📺 ${s.name}</div>
+            <div class="now-playing">${app ? '▶ ' + app : 'Idle'}</div>
+            ${s.state && s.state !== 'Idle' && s.state !== 'closed' ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">${s.state}</div>` : ''}
+            <div class="btn-group">
+              <button class="btn btn-on" onclick="atvCmd('${id}','play_pause')">⏯</button>
+              <button class="btn btn-on" onclick="atvCmd('${id}','volume_up')">🔊+</button>
+              <button class="btn btn-on" onclick="atvCmd('${id}','volume_down')">🔊-</button>
+              <button class="btn btn-danger" onclick="atvCmd('${id}','turn_off')">Off</button>
+            </div>
+          </div>`
+        }).join('')
+
+        const rokuState = states['roku:power:192.168.1.9']
+        const rokuCard = `<div class="atv-card">
+          <div class="device-name">📺 Hisense Roku TV</div>
+          <div class="device-status" style="color:${rokuState?.state==='on'?'#4ade80':'#64748b'}">${rokuState?.state||'unknown'}</div>
+          ${rokuState?.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="fetch('/control/roku',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'keypress/PowerOff'})})">Power Off</button></div>` : '<div style="color:#64748b;font-size:11px">TV is off</div>'}
+        </div>`
+
+        const tvs = appleTVCards + rokuCard
+
+        // Build appliances tab
+        const rangeState = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
+        const appliances = rangeState ? `<div class="device-card">
+          <div class="device-name">🍳 Range</div>
+          <div class="device-status" style="color:${rangeState.state==='on'?'#f87171':'#4ade80'}">${rangeState.state.toUpperCase()}</div>
+          ${rangeState.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="stCmd('8184ceae-f175-b509-ab9d-bb2be1d79294','ovenOperatingState','stop')">Turn Off</button></div>` : '<div style="color:#64748b;font-size:11px">No action needed</div>'}
+        </div>` : '<p style="color:#64748b">No appliance data</p>'
+
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ now, version: WATCHER_VERSION, security, lights, climate, tvs, appliances }))
+      } catch(e) { res.writeHead(500); res.end(JSON.stringify({error: e.message})) }
+      return
+    }
+
     if (req.method === 'GET' && req.url === '/control/state-hash') {
       try {
         const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
@@ -1732,15 +2046,7 @@ function startControlServer() {
       return
     }
 
-    if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
-      try {
-        const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
-        const html = buildControlPage(history)
-        res.writeHead(200, {'Content-Type':'text/html'})
-        res.end(html)
-      } catch(e) { res.writeHead(500); res.end('Error: ' + e.message) }
-      return
-    }
+
 
     if (req.method === 'POST') {
       let body = ''

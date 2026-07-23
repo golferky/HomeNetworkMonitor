@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Home Control</title>
+<style>
+  *{box-sizing:border-box}
+  body{background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;margin:0;padding:0}
+  .header{padding:14px 16px 0;background:#0f172a;position:sticky;top:0;z-index:100;border-bottom:1px solid #1e293b}
+  h1{color:#7c6af7;margin:0 0 2px;font-size:20px}
+  .sub{color:#64748b;font-size:11px;margin-bottom:10px}
+  .tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:0;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:8px 14px;border:none;border-radius:8px 8px 0 0;font-family:system-ui;font-size:12px;font-weight:700;cursor:pointer;background:#1e293b;color:#64748b;white-space:nowrap;border-bottom:2px solid transparent}
+  .tab.active{color:#7c6af7;border-bottom:2px solid #7c6af7}
+  .content{padding:16px;display:none}
+  .content.active{display:block}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .device-card{background:#1e293b;border-radius:12px;padding:13px;border:1px solid #334155}
+  .device-name{font-size:13px;font-weight:700;margin-bottom:3px}
+  .device-status{font-size:11px;margin-bottom:9px}
+  .btn-group{display:flex;gap:5px}
+  .btn{flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer}
+  .btn:active{opacity:.7}
+  .btn-on{background:#4ade80;color:#0f172a}
+  .btn-inactive{background:#374151;color:#6b7280}
+  .btn-danger{background:#f87171;color:#0f172a}
+  .btn-all-off{width:100%;padding:12px;background:#f87171;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:14px}
+  .status-bar{position:fixed;bottom:0;left:0;right:0;padding:10px 16px;background:#1e293b;border-top:1px solid #334155;font-size:12px;display:none;z-index:100}
+  .status-bar.show{display:block}
+  .atv-card{background:#1e293b;border-radius:12px;padding:13px;border:1px solid #334155;margin-bottom:10px}
+  .now-playing{font-size:11px;color:#94a3b8;margin:3px 0 8px;font-style:italic}
+  input[type=range]{width:100%;accent-color:#7c6af7;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏠 Home Control</h1>
+  <div class="sub" id="subtitle">Loading...</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('security',this)">🔐 Security</button>
+    <button class="tab" onclick="showTab('lights',this)">💡 Lights</button>
+    <button class="tab" onclick="showTab('climate',this)">🌡️ Climate</button>
+    <button class="tab" onclick="showTab('tvs',this)">📺 TVs</button>
+    <button class="tab" onclick="showTab('appliances',this)">🍳 Appliances</button>
+  </div>
+</div>
+
+<div id="tab-security" class="content active" id="tab-security"></div>
+<div id="tab-lights" class="content"></div>
+<div id="tab-climate" class="content"></div>
+<div id="tab-tvs" class="content"></div>
+<div id="tab-appliances" class="content"></div>
+<div id="status" class="status-bar"></div>
+
+<script>
+function showTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'))
+  document.getElementById('tab-' + name).classList.add('active')
+  btn.classList.add('active')
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('status')
+  el.textContent = msg
+  el.className = 'status-bar show'
+  setTimeout(() => el.classList.remove('show'), 3000)
+}
+
+let lastHash = null
+async function checkHash() {
+  try {
+    const r = await fetch('/control/state-hash')
+    const d = await r.json()
+    if (lastHash && lastHash !== d.hash) location.reload()
+    lastHash = d.hash
+  } catch(e) {}
+}
+checkHash()
+setInterval(checkHash, 5000)
+
+async function hueCmd(uniqueid, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/hue', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({uniqueid, on}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function ringCmd(deviceKey, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/ring', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({deviceKey, on}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function goveeCmd(mac, on) {
+  showStatus('Sending...')
+  const r = await fetch('/control/govee', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({device: mac, on}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function stCmd(deviceId, capability, command, args) {
+  showStatus('Sending...')
+  const r = await fetch('/control/smartthings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({deviceId, capability, command, args}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function setpointCmd(temp) {
+  showStatus('Setting to ' + temp + '°F...')
+  const r = await fetch('/control/smartthings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({deviceId:'904f48c1-b6ef-4b03-b311-65a7733a967d', capability:'thermostatCoolingSetpoint', command:'setCoolingSetpoint', args:[temp]}) })
+  const d = await r.json()
+  if (d.ok) {
+    showStatus('✓ Set to ' + temp + '°F')
+    document.querySelectorAll('input[type=range]').forEach(s => { s.value = temp; s.previousElementSibling.children[1].textContent = temp + '°F' })
+  } else showStatus('✗ ' + d.error)
+}
+
+async function atvCmd(id, cmd) {
+  showStatus('Sending ' + cmd + '...')
+  const r = await fetch('/control/appletv', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, cmd}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function allLightsOff() {
+  showStatus('Turning all lights off...')
+  const promises = []
+  document.querySelectorAll('[data-hue-id]').forEach(el => promises.push(fetch('/control/hue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:el.dataset.hueId,on:false})})))
+  document.querySelectorAll('[data-ring-key]').forEach(el => promises.push(fetch('/control/ring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceKey:el.dataset.ringKey,on:false})})))
+  document.querySelectorAll('[data-govee-id]').forEach(el => promises.push(fetch('/control/govee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:el.dataset.goveeId,on:false})})))
+  await Promise.all(promises)
+  showStatus('✓ All lights off')
+}
+
+// Load content dynamically
+async function loadContent() {
+  const r = await fetch('/control/data')
+  const d = await r.json()
+  document.getElementById('subtitle').textContent = 'Updated: ' + d.now + ' · v' + d.version
+  document.getElementById('tab-security').innerHTML = d.security
+  document.getElementById('tab-lights').innerHTML = d.lights  
+  document.getElementById('tab-climate').innerHTML = d.climate
+  document.getElementById('tab-tvs').innerHTML = d.tvs
+  document.getElementById('tab-appliances').innerHTML = d.appliances
+}
+loadContent()
+</script>
+</body>
+</html>
