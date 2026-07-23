@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.10'
+const WATCHER_VERSION = '2026.07.23.11'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -452,6 +452,68 @@ async function collectSmartThingsEvents() {
   return items
 }
 
+// ─── Apple TV Monitor ────────────────────────────────────────────────────────
+
+const APPLETV_DEVICES = [
+  {
+    name: 'Living Room',
+    id: '65601471-268F-413C-888B-204B001F7018',
+    ip: '192.168.1.48',
+    companionCreds: '7f6ddac5bafeb542aad59dff492b7dfcb70d54bc456bc5fc630295cb80bbbede:5fe3e15a3b59cdb513cde24fa8a3f85ebdb69a4648ac693584518892390357b1:36353630313437312d323638462d343133432d383838422d323034423030314637303138:63383934613839382d616530332d343135352d386439652d663439326139666131386636',
+    airplayCreds: '7f6ddac5bafeb542aad59dff492b7dfcb70d54bc456bc5fc630295cb80bbbede:c0328fe048657c47741bcfa6ba3824dfc92cf335660d23ff5bca84aeb972f437:36353630313437312d323638462d343133432d383838422d323034423030314637303138:66626532396366302d303666632d343863632d616234662d653336373066376438306434',
+  },
+  // Bedroom and Basement to be added after pairing
+]
+
+async function getAppleTVState(device) {
+  try {
+    const { stdout } = await execAsync(
+      `atvremote --id ${device.id} --protocol airplay ` +
+      `--companion-credentials ${device.companionCreds} ` +
+      `--airplay-credentials ${device.airplayCreds} ` +
+      `app playing`,
+      { timeout: 15000 }
+    )
+    const appMatch   = stdout.match(/App: (.+?) \(/)
+    const stateMatch = stdout.match(/Device state: (\w+)/)
+    const titleMatch = stdout.match(/Title: (.+)/)
+    const artistMatch= stdout.match(/Artist: (.+)/)
+    const app   = appMatch?.[1]   ?? 'Unknown'
+    const state = stateMatch?.[1] ?? 'Unknown'
+    const title = titleMatch?.[1]?.trim()  ?? ''
+    const artist= artistMatch?.[1]?.trim() ?? ''
+    return { app, state, title, artist, error: null }
+  } catch(e) {
+    return { app: null, state: 'Offline', title: '', artist: '', error: e.message }
+  }
+}
+
+async function collectAppleTVEvents() {
+  const items = []
+  for (const device of APPLETV_DEVICES) {
+    const { app, state, title, artist } = await getAppleTVState(device)
+    const isPlaying = state === 'Playing'
+    const displayState = isPlaying && title ? `${title}${artist ? ' - ' + artist : ''}` : state
+    items.push({
+      key: `appletv:${device.id}`.toLowerCase(),
+      source: 'AppleTV',
+      category: 'Sensor',
+      name: `Apple TV ${device.name}`,
+      state: displayState,
+    })
+    if (app) {
+      items.push({
+        key: `appletv:app:${device.id}`.toLowerCase(),
+        source: 'AppleTV',
+        category: 'Sensor',
+        name: `Apple TV ${device.name} app`,
+        state: app,
+      })
+    }
+  }
+  return items
+}
+
 // ─── Roku Monitor ────────────────────────────────────────────────────────────
 
 const ROKU_DEVICES = [
@@ -784,6 +846,7 @@ async function collectLgTvEvents() {
 async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
   const rokuItems = await collectRokuEvents()
+  const appleTVItems = await collectAppleTVEvents().catch(e => { console.log('AppleTV skipped:', e.message); return [] })
   const btItems = await collectBluetoothEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
     withTimeout(collectRingEvents(ringApi), RING_TIMEOUT_SECONDS * 1000, 'Ring collection').catch(err => {
@@ -822,7 +885,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems, ...appleTVItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
