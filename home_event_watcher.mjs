@@ -1460,14 +1460,23 @@ function buildControlPage(history) {
 
 <script>
 async function setpointCmd(temp) {
-  showStatus('Setting temperature...')
+  showStatus('Setting to ' + temp + '°F...')
   const r = await fetch('/control/smartthings', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ deviceId: '904f48c1-b6ef-4b03-b311-65a7733a967d', capability: 'thermostatCoolingSetpoint', command: 'setCoolingSetpoint', args: [temp] })
   })
   const d = await r.json()
-  showStatus(d.ok ? '\u2713 Set to ' + temp + '°F' : '\u2717 ' + d.error)
+  if (d.ok) {
+    showStatus('\u2713 Set to ' + temp + '°F')
+    // Update display without reloading
+    document.querySelectorAll('input[type=range]').forEach(s => { s.value = temp })
+    document.querySelectorAll('input[type=range]').forEach(s => {
+      s.previousElementSibling.children[1].textContent = temp + '°F'
+    })
+  } else {
+    showStatus('\u2717 ' + d.error)
+  }
 }
 
 async function goveeCmd(mac, on) {
