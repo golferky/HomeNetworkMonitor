@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.9'
+const WATCHER_VERSION = '2026.07.23.10'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1659,7 +1659,22 @@ function startControlServer() {
           }
 
           else if (req.url === '/control/smartthings') {
-            await sendSmartThingsCommand(data.deviceId, data.capability, data.command)
+            await sendSmartThingsCommand(data.deviceId, data.capability, data.command, data.args || [])
+            // Optimistically update thermostat state in history
+            if (data.capability === 'thermostatCoolingSetpoint' || data.capability === 'thermostatHeatingSetpoint') {
+              try {
+                const hist = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+                const stateKey = Object.keys(hist.states || {}).find(k => k.includes('thermostat') && k.includes(data.deviceId.slice(0,8)))
+                if (stateKey && data.args?.[0]) {
+                  const s = hist.states[stateKey]
+                  const parts = (s.state || '').split(' ')
+                  parts[1] = data.args[0] + 'F'
+                  s.state = parts.join(' ')
+                  s.lastChangedAt = new Date().toISOString()
+                  writeFileSync(HISTORY_FILE, JSON.stringify(hist, null, 2))
+                }
+              } catch(e) {}
+            }
             send({ ok: true })
           }
 
