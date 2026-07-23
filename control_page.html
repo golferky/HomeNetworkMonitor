@@ -126,6 +126,13 @@ async function atvCmd(id, cmd) {
   showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
 }
 
+async function atvVolumeCmd(id, vol) {
+  showStatus('Setting volume to ' + vol + '%...')
+  const r = await fetch('/control/appletv', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, cmd: 'set_volume:' + vol}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Volume: ' + vol + '%' : '✗ ' + d.error)
+}
+
 async function allLightsOff() {
   showStatus('Turning all lights off...')
   const promises = []

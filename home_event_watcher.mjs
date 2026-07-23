@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.14'
+const WATCHER_VERSION = '2026.07.23.15'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -471,18 +471,20 @@ async function getAppleTVState(device) {
       `atvremote --id ${device.id} --protocol airplay ` +
       `--companion-credentials ${device.companionCreds} ` +
       `--airplay-credentials ${device.airplayCreds} ` +
-      `app playing`,
+      `app playing volume`,
       { timeout: 15000 }
     )
     const appMatch   = stdout.match(/App: (.+?) \(/)
     const stateMatch = stdout.match(/Device state: (\w+)/)
     const titleMatch = stdout.match(/Title: (.+)/)
     const artistMatch= stdout.match(/Artist: (.+)/)
-    const app   = appMatch?.[1]   ?? 'Unknown'
-    const state = stateMatch?.[1] ?? 'Unknown'
-    const title = titleMatch?.[1]?.trim()  ?? ''
-    const artist= artistMatch?.[1]?.trim() ?? ''
-    return { app, state, title, artist, error: null }
+    const volMatch   = stdout.match(/^([\d.]+)$/m)
+    const app    = appMatch?.[1]   ?? 'Unknown'
+    const state  = stateMatch?.[1] ?? 'Unknown'
+    const title  = titleMatch?.[1]?.trim()  ?? ''
+    const artist = artistMatch?.[1]?.trim() ?? ''
+    const volume = volMatch ? Math.round(parseFloat(volMatch[1]) * 100) : null
+    return { app, state, title, artist, volume, error: null }
   } catch(e) {
     return { app: null, state: 'Offline', title: '', artist: '', error: e.message }
   }
@@ -500,6 +502,7 @@ async function collectAppleTVEvents() {
       category: 'Sensor',
       name: `Apple TV ${device.name}`,
       state: displayState,
+      volume: volume,
     })
     if (app) {
       items.push({
@@ -1843,13 +1846,19 @@ function startControlServer() {
             <div class="device-name">📺 ${s.name}</div>
             <div class="now-playing">${app ? '▶ ' + app : 'Idle'}</div>
             <div style="font-size:11px;color:${s.state==='Offline'||s.state==='closed'?'#64748b':'#94a3b8'};margin-bottom:8px">${s.state==='closed'?'Standby':s.state}</div>
-            <div class="btn-group">
+            <div class="btn-group" style="margin-bottom:8px">
               <button class="btn btn-on" onclick="atvCmd('${id}','turn_on')">On</button>
               <button class="btn btn-on" onclick="atvCmd('${id}','play_pause')">⏯</button>
-              <button class="btn btn-on" onclick="atvCmd('${id}','volume_up')">🔊+</button>
-              <button class="btn btn-on" onclick="atvCmd('${id}','volume_down')">🔊-</button>
               <button class="btn btn-danger" onclick="atvCmd('${id}','turn_off')">Off</button>
             </div>
+            ${s.volume != null ? `<div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:2px">
+                <span>🔇</span><span id="vol-${id}" style="color:#e2e8f0">${s.volume}%</span><span>🔊</span>
+              </div>
+              <input type="range" min="0" max="100" value="${s.volume}"
+                oninput="document.getElementById('vol-${id}').textContent=this.value+'%'"
+                onchange="atvVolumeCmd('${id}', parseInt(this.value))">
+            </div>` : ''}
           </div>`
         }).join('')
 
@@ -2125,10 +2134,19 @@ function startControlServer() {
             try {
               const device = APPLETV_DEVICES.find(d => d.id === data.id)
               if (!device) return send({ ok: false, error: 'Device not found' })
-              const cmd = `atvremote --id ${device.id} --protocol airplay ` +
-                `--companion-credentials ${device.companionCreds} ` +
-                `--airplay-credentials ${device.airplayCreds} ` +
-                `${data.cmd}`
+              let cmd
+              if (data.cmd.startsWith('set_volume:')) {
+                const vol = parseFloat(data.cmd.split(':')[1]) / 100
+                cmd = `atvremote --id ${device.id} --protocol airplay ` +
+                  `--companion-credentials ${device.companionCreds} ` +
+                  `--airplay-credentials ${device.airplayCreds} ` +
+                  `set_volume=${vol}`
+              } else {
+                cmd = `atvremote --id ${device.id} --protocol airplay ` +
+                  `--companion-credentials ${device.companionCreds} ` +
+                  `--airplay-credentials ${device.airplayCreds} ` +
+                  `${data.cmd}`
+              }
               await execAsync(cmd, { timeout: 15000 })
               send({ ok: true })
             } catch(e) { send({ ok: false, error: e.message }) }
