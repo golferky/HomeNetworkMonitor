@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.1'
+const WATCHER_VERSION = '2026.07.23.9'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1358,9 +1358,9 @@ function buildControlPage(history) {
       <div class="device-name">🌡️ Thermostat</div>
       <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current ? current + '°F current' : ''} · ${displaySetpoint ? 'Set: ' + displaySetpoint + '°F' : ''}</div>
       <div class="btn-group" style="margin-bottom:8px">
-        <button class="btn ${isCool?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">❄️ Cool</button>
-        <button class="btn ${isHeat?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">🔥 Heat</button>
-        <button class="btn ${isOff?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
+        <button class="btn ${isCool?'btn-inactive':'btn-on'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">❄️ Cool</button>
+        <button class="btn ${isHeat?'btn-inactive':'btn-on'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">🔥 Heat</button>
+        <button class="btn ${isOff?'btn-inactive':'btn-on'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
       </div>
       ${setpoint ? `<div style="margin-top:8px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
