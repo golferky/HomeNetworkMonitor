@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.22.24'
+const WATCHER_VERSION = '2026.07.23.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -357,10 +357,14 @@ async function collectHueEvents() {
 async function collectSmartThingsEvents() {
   if (!SMARTTHINGS_TOKEN) return []
 
+  const stToken = process.env.SMARTTHINGS_TOKEN
+  if (!stToken) return []
   const response = await fetch('https://api.smartthings.com/v1/devices', {
     headers: { 'Authorization': `Bearer ${SMARTTHINGS_TOKEN}` }
   })
+  if (response.status === 401) throw new Error('SmartThings 401 Unauthorized - token expired')
   const data = await response.json()
+  if (!data.items) throw new Error(data.error || 'SmartThings API error')
   const devices = data.items || []
   const items = []
 
@@ -791,8 +795,18 @@ async function collectAllItems(ringApi) {
       console.log(`Hue skipped: ${err.message}`)
       return []
     }),
-    withTimeout(collectSmartThingsEvents(), ST_TIMEOUT_SECONDS * 1000, 'SmartThings collection').catch(err => {
+    withTimeout(collectSmartThingsEvents(), ST_TIMEOUT_SECONDS * 1000, 'SmartThings collection').catch(async err => {
       console.log(`SmartThings skipped: ${err.message}`)
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized') || err.message?.includes('permission deny')) {
+        await sendEventAlert([{
+          source: 'SmartThings',
+          category: 'Sensor',
+          name: 'SmartThings Token Expired',
+          state: 'active',
+          at: new Date().toISOString(),
+          kind: 'sensor_triggered',
+        }])
+      }
       return []
     }),
     withTimeout(collectLgTvEvents(), (LG_TIMEOUT_SECONDS + LG_SSDP_WAIT_MS / 1000 + 2) * 1000, 'LG TV collection').catch(err => {
