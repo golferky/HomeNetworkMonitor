@@ -430,8 +430,11 @@ async function collectSmartThingsEvents() {
 
     if (isThermo) {
       const mode        = main?.thermostatMode?.thermostatMode?.value ?? 'unknown'
-      const setpoint    = main?.thermostatHeatingSetpoint?.heatingSetpoint?.value ??
-                          main?.thermostatCoolingSetpoint?.coolingSetpoint?.value
+      const coolSetpoint = main?.thermostatCoolingSetpoint?.coolingSetpoint?.value
+      const heatSetpoint = main?.thermostatHeatingSetpoint?.heatingSetpoint?.value
+      const setpoint = mode === 'cool' ? (coolSetpoint ?? heatSetpoint) :
+                       mode === 'heat' ? (heatSetpoint ?? coolSetpoint) :
+                       (coolSetpoint ?? heatSetpoint)
       const temp        = main?.temperatureMeasurement?.temperature?.value
       const state       = `${mode}${setpoint ? ' ' + Math.round(setpoint) + 'F' : ''}${temp ? ' (' + Math.round(temp) + 'F)' : ''}`
       items.push({
@@ -1346,13 +1349,18 @@ function buildControlPage(history) {
     const mode = parts[0] || 'unknown'
     const setpoint = parts[1] ? parseInt(parts[1]) : null
     const current = parts[2] ? parseInt(parts[2].replace(/[()F]/g,'')) : null
+    const isCool = mode === 'cool'
+    const isHeat = mode === 'heat'
+    const isOff  = mode === 'off'
+    // Use cooling setpoint when in cool mode, heating setpoint when in heat mode
+    const displaySetpoint = setpoint || 70
     return `<div class="device-card" style="grid-column:1/-1">
       <div class="device-name">🌡️ Thermostat</div>
-      <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current ? current + '°F current' : ''} · ${setpoint ? 'Set: ' + setpoint + '°F' : ''}</div>
+      <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current ? current + '°F current' : ''} · ${displaySetpoint ? 'Set: ' + displaySetpoint + '°F' : ''}</div>
       <div class="btn-group" style="margin-bottom:8px">
-        <button class="btn btn-on" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">Cool</button>
-        <button class="btn btn-on" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">Heat</button>
-        <button class="btn btn-off" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
+        <button class="btn ${isCool?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">❄️ Cool</button>
+        <button class="btn ${isHeat?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">🔥 Heat</button>
+        <button class="btn ${isOff?'btn-on':'btn-inactive'}" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
       </div>
       ${setpoint ? `<div style="margin-top:8px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
