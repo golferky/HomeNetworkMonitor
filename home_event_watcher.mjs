@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.11'
+const WATCHER_VERSION = '2026.07.23.12'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1336,6 +1336,7 @@ async function sendSmartThingsCommand(deviceId, capability, command, args = []) 
 }
 
 function buildControlPage(history) {
+  // This function builds the full tabbed control page
   const states = history.states ?? {}
 
   // Build Hue light controls
@@ -1436,6 +1437,26 @@ function buildControlPage(history) {
       </div>` : ''}
     </div>`
   })() : ''
+
+  // Apple TV cards
+  const appleTVStates = Object.entries(states).filter(([k]) => k.startsWith('appletv:') && !k.includes(':app:'))
+  const appleTVCards = appleTVStates.map(([key, s]) => {
+    const id = key.replace('appletv:', '')
+    const appKey = `appletv:app:${id}`
+    const app = states[appKey]?.state || ''
+    const isPlaying = s.state !== 'Idle' && s.state !== 'Offline' && s.state !== 'closed'
+    return `<div class="atv-card">
+      <div class="device-name">📺 ${s.name}</div>
+      <div class="atv-now-playing">${app ? '▶ ' + app : 'Idle'}</div>
+      ${s.state !== 'Idle' && s.state !== 'closed' ? `<div class="device-status" style="color:#94a3b8;font-size:11px;margin-bottom:8px">${s.state}</div>` : ''}
+      <div class="btn-group">
+        <button class="btn btn-on" onclick="atvCmd('${id}', 'play_pause')">⏯</button>
+        <button class="btn btn-on" onclick="atvCmd('${id}', 'volume_up')">🔊+</button>
+        <button class="btn btn-on" onclick="atvCmd('${id}', 'volume_down')">🔊-</button>
+        <button class="btn btn-danger" onclick="atvCmd('${id}', 'turn_off')">Off</button>
+      </div>
+    </div>`
+  }).join('')
 
   const garageOpen = garageState?.state === 'active'
   const garageCard = garageState ? `<div class="device-card">
@@ -1561,6 +1582,24 @@ async function goveeCmd(mac, on) {
   showStatus(d.ok ? '\u2713 Done' : '\u2717 ' + d.error)
 }
 
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'))
+  document.getElementById('tab-' + name).classList.add('active')
+  event.target.classList.add('active')
+}
+
+async function atvCmd(id, cmd) {
+  showStatus('Sending ' + cmd + '...')
+  const r = await fetch('/control/appletv', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ id, cmd })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '\u2713 Done' : '\u2717 ' + d.error)
+}
+
 async function allLightsOff() {
   showStatus('Turning all lights off...')
   const promises = []
@@ -1636,7 +1675,8 @@ async function ringCmd(deviceKey, on) {
 function showStatus(msg) {
   const el = document.getElementById('status')
   el.textContent = msg
-  el.className = 'status show'
+  el.className = 'status-bar show'
+  setTimeout(() => el.classList.remove('show'), 3000)
 }
 
 // Auto-refresh when state changes
@@ -1768,6 +1808,19 @@ function startControlServer() {
                 }
               } catch(e) {}
               send({ ok: result.code === 200 })
+            } catch(e) { send({ ok: false, error: e.message }) }
+          }
+
+          else if (req.url === '/control/appletv') {
+            try {
+              const device = APPLETV_DEVICES.find(d => d.id === data.id)
+              if (!device) return send({ ok: false, error: 'Device not found' })
+              const cmd = `atvremote --id ${device.id} --protocol airplay ` +
+                `--companion-credentials ${device.companionCreds} ` +
+                `--airplay-credentials ${device.airplayCreds} ` +
+                `${data.cmd}`
+              await execAsync(cmd, { timeout: 15000 })
+              send({ ok: true })
             } catch(e) { send({ ok: false, error: e.message }) }
           }
 
