@@ -1085,6 +1085,13 @@ function startHueWebhookListener() {
       }
     })
   })
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.log(`Port ${HUE_WEBHOOK_PORT} already in use - webhook listener skipped`)
+    } else {
+      console.error('Webhook listener error:', e.message)
+    }
+  })
   server.listen(HUE_WEBHOOK_PORT, () => {
     console.log(`Hue webhook listener on port ${HUE_WEBHOOK_PORT}`)
   })
