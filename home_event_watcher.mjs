@@ -1339,6 +1339,29 @@ function buildControlPage(history) {
   const lockState   = states['smartthings:lock:5d9af01e-3ab3-40dc-91ec-e060ec7f801b']
   const rangeState  = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
 
+  // Thermostat state
+  const thermoState = states['smartthings:thermostat:904f48c1-b6ef-4b03-b311-65a7733a967d']
+  const thermoCard = thermoState ? (() => {
+    const parts = (thermoState.state || '').split(' ')
+    const mode = parts[0] || 'unknown'
+    const setpoint = parts[1] ? parseInt(parts[1]) : null
+    const current = parts[2] ? parseInt(parts[2].replace(/[()F]/g,'')) : null
+    return `<div class="device-card" style="grid-column:1/-1">
+      <div class="device-name">🌡️ Thermostat</div>
+      <div class="device-status" style="color:#4ade80">${mode.toUpperCase()} · ${current ? current + '°F current' : ''} · ${setpoint ? 'Set: ' + setpoint + '°F' : ''}</div>
+      <div class="btn-group" style="margin-bottom:8px">
+        <button class="btn btn-on" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','cool')">Cool</button>
+        <button class="btn btn-on" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">Heat</button>
+        <button class="btn btn-off" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
+      </div>
+      ${setpoint ? `<div class="btn-group">
+        <button class="btn btn-on" onclick="setpointCmd(${setpoint - 1})">− 1°</button>
+        <button class="btn btn-inactive" style="flex:2" disabled>${setpoint}°F</button>
+        <button class="btn btn-on" onclick="setpointCmd(${setpoint + 1})">+ 1°</button>
+      </div>` : ''}
+    </div>`
+  })() : ''
+
   const garageOpen = garageState?.state === 'active'
   const garageCard = garageState ? `<div class="device-card">
     <div class="device-name">🚗 Garage Door</div>
@@ -1419,6 +1442,9 @@ function buildControlPage(history) {
 <h2>Security</h2>
 <div class="grid">${garageCard}${lockCard}</div>
 
+<h2>Climate</h2>
+<div class="grid">${thermoCard}</div>
+
 <h2>Lights</h2>
 <div class="grid">${hueLights}${ringLights}${goveeLights}</div>
 
@@ -1429,6 +1455,17 @@ function buildControlPage(history) {
 <div class="grid">${rangeCard}</div>
 
 <script>
+async function setpointCmd(temp) {
+  showStatus('Setting temperature...')
+  const r = await fetch('/control/smartthings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ deviceId: '904f48c1-b6ef-4b03-b311-65a7733a967d', capability: 'thermostatCoolingSetpoint', command: 'setCoolingSetpoint', args: [temp] })
+  })
+  const d = await r.json()
+  showStatus(d.ok ? '\u2713 Set to ' + temp + '°F' : '\u2717 ' + d.error)
+}
+
 async function goveeCmd(mac, on) {
   showStatus('Sending...')
   const r = await fetch('/control/govee', {
