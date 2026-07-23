@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.13'
+const WATCHER_VERSION = '2026.07.23.14'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1842,8 +1842,9 @@ function startControlServer() {
           return `<div class="atv-card">
             <div class="device-name">📺 ${s.name}</div>
             <div class="now-playing">${app ? '▶ ' + app : 'Idle'}</div>
-            ${s.state && s.state !== 'Idle' && s.state !== 'closed' ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">${s.state}</div>` : ''}
+            <div style="font-size:11px;color:${s.state==='Offline'||s.state==='closed'?'#64748b':'#94a3b8'};margin-bottom:8px">${s.state==='closed'?'Standby':s.state}</div>
             <div class="btn-group">
+              <button class="btn btn-on" onclick="atvCmd('${id}','turn_on')">On</button>
               <button class="btn btn-on" onclick="atvCmd('${id}','play_pause')">⏯</button>
               <button class="btn btn-on" onclick="atvCmd('${id}','volume_up')">🔊+</button>
               <button class="btn btn-on" onclick="atvCmd('${id}','volume_down')">🔊-</button>
@@ -1855,8 +1856,11 @@ function startControlServer() {
         const rokuState = states['roku:power:192.168.1.9']
         const rokuCard = `<div class="atv-card">
           <div class="device-name">📺 Hisense Roku TV</div>
-          <div class="device-status" style="color:${rokuState?.state==='on'?'#4ade80':'#64748b'}">${rokuState?.state||'unknown'}</div>
-          ${rokuState?.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="fetch('/control/roku',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'keypress/PowerOff'})})">Power Off</button></div>` : '<div style="color:#64748b;font-size:11px">TV is off</div>'}
+          <div class="now-playing">${rokuState?.state==='on' ? '▶ On' : 'Off'}</div>
+          <div class="btn-group">
+            <button class="btn btn-on" onclick="fetch('/control/roku',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'keypress/PowerOn'})})">On</button>
+            <button class="btn btn-danger" onclick="fetch('/control/roku',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:'keypress/PowerOff'})})">Off</button>
+          </div>
         </div>`
 
         const tvs = appleTVCards + rokuCard
