@@ -133,6 +133,20 @@ async function atvVolumeCmd(id, vol) {
   showStatus(d.ok ? '✓ Volume: ' + vol + '%' : '✗ ' + d.error)
 }
 
+async function sonosCmd(ip, cmd) {
+  showStatus('Sonos ' + cmd + '...')
+  const r = await fetch('/control/sonos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip, cmd}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Done' : '✗ ' + d.error)
+}
+
+async function sonosVolCmd(ip, volume) {
+  showStatus('Setting Sonos volume to ' + volume + '%...')
+  const r = await fetch('/control/sonos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip, cmd:'volume', volume}) })
+  const d = await r.json()
+  showStatus(d.ok ? '✓ Volume: ' + volume + '%' : '✗ ' + d.error)
+}
+
 async function allLightsOff() {
   showStatus('Turning all lights off...')
   const promises = []

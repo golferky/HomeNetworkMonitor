@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.15'
+const WATCHER_VERSION = '2026.07.23.16'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -452,6 +452,59 @@ async function collectSmartThingsEvents() {
   return items
 }
 
+// ─── Sonos Monitor ───────────────────────────────────────────────────────────
+
+const SONOS_DEVICES = [
+  { name: 'Living Room Sonos Beam', ip: '192.168.1.10' },
+]
+
+async function getSonosState(device) {
+  try {
+    const soapCall = async (service, action, body) => {
+      const { stdout } = await execAsync(
+        `curl -s -X POST http://${device.ip}:1400/MediaRenderer/${service}/Control ` +
+        `-H 'Content-Type: text/xml' ` +
+        `-H 'SOAPACTION: "urn:schemas-upnp-org:service:${service}:1#${action}"' ` +
+        `-d '<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:${action} xmlns:u="urn:schemas-upnp-org:service:${service}:1">${body}</u:${action}></s:Body></s:Envelope>'`,
+        { timeout: 5000 }
+      )
+      return stdout
+    }
+
+    const [transportXml, volumeXml] = await Promise.all([
+      soapCall('AVTransport', 'GetTransportInfo', '<InstanceID>0</InstanceID>'),
+      soapCall('RenderingControl', 'GetVolume', '<InstanceID>0</InstanceID><Channel>Master</Channel>'),
+    ])
+
+    const stateMatch  = transportXml.match(/<CurrentTransportState>([^<]+)</)
+    const volumeMatch = volumeXml.match(/<CurrentVolume>([^<]+)</)
+
+    const state  = stateMatch?.[1]  ?? 'UNKNOWN'
+    const volume = volumeMatch ? parseInt(volumeMatch[1]) : null
+
+    return { state, volume, error: null }
+  } catch(e) {
+    return { state: 'OFFLINE', volume: null, error: e.message }
+  }
+}
+
+async function collectSonosEvents() {
+  const items = []
+  for (const device of SONOS_DEVICES) {
+    const { state, volume } = await getSonosState(device)
+    items.push({
+      key: `sonos:${device.ip}`,
+      source: 'Sonos',
+      category: 'Sensor',
+      name: device.name,
+      state: state === 'PLAYING' ? 'active' : 'clear',
+      sonosState: state,
+      volume,
+    })
+  }
+  return items
+}
+
 // ─── Apple TV Monitor ────────────────────────────────────────────────────────
 
 const APPLETV_DEVICES = [
@@ -849,6 +902,7 @@ async function collectLgTvEvents() {
 async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
   const rokuItems = await collectRokuEvents()
+  const sonosItems = await collectSonosEvents().catch(e => { console.log('Sonos skipped:', e.message); return [] })
   const appleTVItems = await collectAppleTVEvents().catch(e => { console.log('AppleTV skipped:', e.message); return [] })
   const btItems = await collectBluetoothEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
@@ -888,7 +942,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems, ...appleTVItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems, ...appleTVItems, ...sonosItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -1872,7 +1926,32 @@ function startControlServer() {
           </div>
         </div>`
 
-        const tvs = appleTVCards + rokuCard
+        // Sonos cards
+        const sonosStates = Object.entries(states).filter(([k]) => k.startsWith('sonos:'))
+        const sonosCards = sonosStates.map(([key, s]) => {
+          const isPlaying = s.sonosState === 'PLAYING' || s.state === 'active'
+          const vol = s.volume ?? 0
+          const ip = key.replace('sonos:','')
+          return `<div class="atv-card">
+            <div class="device-name">🔊 ${s.name}</div>
+            <div class="now-playing">${isPlaying ? '▶ Playing' : 'Stopped'}</div>
+            <div class="btn-group" style="margin-bottom:8px">
+              <button class="btn btn-on" onclick="sonosCmd('${ip}','play')">▶</button>
+              <button class="btn btn-on" onclick="sonosCmd('${ip}','pause')">⏸</button>
+              <button class="btn btn-danger" onclick="sonosCmd('${ip}','stop')">⏹</button>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:2px">
+                <span>🔇</span><span id="svol-${ip}" style="color:#e2e8f0">${vol}%</span><span>🔊</span>
+              </div>
+              <input type="range" min="0" max="100" value="${vol}"
+                oninput="document.getElementById('svol-${ip}').textContent=this.value+'%'"
+                onchange="sonosVolCmd('${ip}', parseInt(this.value))">
+            </div>
+          </div>`
+        }).join('')
+
+        const tvs = appleTVCards + sonosCards + rokuCard
 
         // Build appliances tab
         const rangeState = states['smartthings:range:8184ceae-f175-b509-ab9d-bb2be1d79294']
@@ -2127,6 +2206,31 @@ function startControlServer() {
                 }
               } catch(e) {}
               send({ ok: result.code === 200 })
+            } catch(e) { send({ ok: false, error: e.message }) }
+          }
+
+          else if (req.url === '/control/sonos') {
+            try {
+              const { ip, cmd, volume } = data
+              if (cmd === 'volume') {
+                const soap = `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:SetVolume xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1"><InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>${volume}</DesiredVolume></u:SetVolume></s:Body></s:Envelope>`
+                const resp = await fetch(`http://${ip}:1400/MediaRenderer/RenderingControl/Control`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'text/xml', 'SOAPACTION': '"urn:schemas-upnp-org:service:RenderingControl:1#SetVolume"' },
+                  body: soap
+                })
+                send({ ok: resp.ok })
+              } else {
+                const actions = { play: 'Play', pause: 'Pause', stop: 'Stop' }
+                const action = actions[cmd] || 'Pause'
+                const soap = `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:${action} xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><Speed>1</Speed></u:${action}></s:Body></s:Envelope>`
+                const resp = await fetch(`http://${ip}:1400/MediaRenderer/AVTransport/Control`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'text/xml', 'SOAPACTION': `"urn:schemas-upnp-org:service:AVTransport:1#${action}"` },
+                  body: soap
+                })
+                send({ ok: resp.ok })
+              }
             } catch(e) { send({ ok: false, error: e.message }) }
           }
 
