@@ -1354,10 +1354,14 @@ function buildControlPage(history) {
         <button class="btn btn-on" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','heat')">Heat</button>
         <button class="btn btn-off" onclick="stCmd('904f48c1-b6ef-4b03-b311-65a7733a967d','thermostatMode','off')">Off</button>
       </div>
-      ${setpoint ? `<div class="btn-group">
-        <button class="btn btn-on" onclick="setpointCmd(${setpoint - 1})">− 1°</button>
-        <button class="btn btn-inactive" style="flex:2" disabled>${setpoint}°F</button>
-        <button class="btn btn-on" onclick="setpointCmd(${setpoint + 1})">+ 1°</button>
+      ${setpoint ? `<div style="margin-top:8px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
+          <span>60°F</span><span style="color:#e2e8f0;font-weight:700">${setpoint}°F</span><span>85°F</span>
+        </div>
+        <input type="range" min="60" max="85" value="${setpoint}" 
+          style="width:100%;accent-color:#7c6af7"
+          oninput="this.previousElementSibling.children[1].textContent=this.value+'°F'"
+          onchange="setpointCmd(parseInt(this.value))">
       </div>` : ''}
     </div>`
   })() : ''
