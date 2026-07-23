@@ -300,6 +300,55 @@
       "ip": "192.168.1.112",
       "notify": false,
       "category": "phone"
+    },
+    {
+      "name": "Ring Mailbox Bridge",
+      "mac": "dc:06:75:46:0d:c8",
+      "ip": "192.168.1.167",
+      "notify": false,
+      "category": "ring"
+    },
+    {
+      "name": "Unknown Device (.156)",
+      "mac": "ca:58:b3:9a:35:04",
+      "ip": "192.168.1.156",
+      "notify": false,
+      "category": "unknown"
+    },
+    {
+      "name": "Netgear Router",
+      "mac": "34:98:b5:9d:96:9d",
+      "ip": "192.168.1.1",
+      "notify": true,
+      "category": "infrastructure"
+    },
+    {
+      "name": "Govee Floor Lamp Left",
+      "mac": "a8:46:74:15:20:f4",
+      "ip": "192.168.1.168",
+      "notify": false,
+      "category": "light"
+    },
+    {
+      "name": "Gary's MacBook Pro",
+      "mac": "fa:11:34:f2:3a:f8",
+      "ip": "192.168.1.189",
+      "notify": true,
+      "category": "apple"
+    },
+    {
+      "name": "Gary's MacBook Pro (alt)",
+      "mac": "5a:3d:9c:52:9a:4f",
+      "ip": "192.168.1.103",
+      "notify": false,
+      "category": "apple"
+    },
+    {
+      "name": "iPad Pro 12.9",
+      "mac": "fe:fa:ec:bb:64:62",
+      "ip": "192.168.1.26",
+      "notify": false,
+      "category": "apple"
     }
   ]
 }

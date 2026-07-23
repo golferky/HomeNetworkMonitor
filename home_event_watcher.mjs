@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.23.16'
+const WATCHER_VERSION = '2026.07.23.18'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -450,6 +450,55 @@ async function collectSmartThingsEvents() {
   }
 
   return items
+}
+
+// ─── Network Sniffer ─────────────────────────────────────────────────────────
+
+const knownAlertedMacs = new Set()  // Track MACs we've already alerted on this session
+
+async function collectNetworkSnifferEvents() {
+  try {
+    const { stdout } = await execAsync('arp -a', { timeout: 10000 })
+    const devices = loadDeviceRegistry()
+    const normMac = m => m.toLowerCase().split(":").map(o => o.padStart(2,"0")).join(":")
+    const knownMacs = new Set(devices.map(d => normMac(d.mac)))
+
+    const items = []
+    for (const line of stdout.split('\n')) {
+      const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-f:]+)/i)
+      if (!m) continue
+      const ip  = m[1]
+      const mac = m[2].toLowerCase()
+
+      // Skip broadcast, incomplete, loopback, non-home IPs
+      if (mac === 'ff:ff:ff:ff:ff:ff') continue
+      if (line.includes('incomplete')) continue
+      if (!ip.startsWith('192.168.1.')) continue
+      if (ip === '192.168.1.255') continue
+
+      const nMac = normMac(mac)
+      if (!knownMacs.has(nMac) && !knownAlertedMacs.has(nMac)) {
+        knownAlertedMacs.add(nMac)
+
+        console.log(`UNKNOWN DEVICE: ${ip} ${mac}`)
+        items.push({
+          key: `sniffer:${mac}`,
+          source: 'Network',
+          category: 'Sensor',
+          name: `Unknown Device (${ip})`,
+          state: 'active',
+          kind: 'sensor_triggered',
+          at: new Date().toISOString(),
+          mac,
+          ip,
+        })
+      }
+    }
+    return items
+  } catch(e) {
+    console.log(`Network sniffer skipped: ${e.message}`)
+    return []
+  }
 }
 
 // ─── Sonos Monitor ───────────────────────────────────────────────────────────
@@ -903,6 +952,7 @@ async function collectAllItems(ringApi) {
   const hueWebhookItems = await collectHueWebhookEvents()
   const rokuItems = await collectRokuEvents()
   const sonosItems = await collectSonosEvents().catch(e => { console.log('Sonos skipped:', e.message); return [] })
+  const snifferItems = await collectNetworkSnifferEvents()
   const appleTVItems = await collectAppleTVEvents().catch(e => { console.log('AppleTV skipped:', e.message); return [] })
   const btItems = await collectBluetoothEvents()
   const [ringItems, goveeItems, hueItems, stItems, lgItems, presenceItems] = await Promise.all([
@@ -942,7 +992,7 @@ async function collectAllItems(ringApi) {
     }),
   ])
 
-  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems, ...appleTVItems, ...sonosItems]
+  return [...ringItems, ...goveeItems, ...hueItems, ...stItems, ...lgItems, ...hueWebhookItems, ...presenceItems, ...btItems, ...rokuItems, ...appleTVItems, ...sonosItems, ...snifferItems]
 }
 
 function findLikelyCause(history, now, lightKey) {
@@ -1233,6 +1283,7 @@ function getEventPriority(event) {
   const key = (event.key || '').toLowerCase()
 
   // Critical — security events
+  if (key.includes('sniffer:')) return 'critical'
   if (key.includes('smartthings:lock') && event.state === 'active') return 'critical'
   if (key.includes('smartthings:door') && event.state === 'active') return 'critical'
   if (source === 'network' && event.state === 'active' && name.includes('tesla')) return 'important'
