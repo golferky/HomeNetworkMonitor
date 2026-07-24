@@ -1827,6 +1827,22 @@ function startControlServer() {
   const server = http.createServer(async (req, res) => {
     const send = (data) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)) }
 
+    // Basic auth check
+    const AUTH_USER = process.env.HOME_CONTROL_USER || 'gary'
+    const AUTH_PASS = process.env.HOME_CONTROL_PASS || 'home2026'
+    const authHeader = req.headers['authorization']
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Home Control"', 'Content-Type': 'text/html' })
+      res.end('<html><body><h2>Authentication required</h2></body></html>')
+      return
+    }
+    const [user, pass] = Buffer.from(authHeader.slice(6), 'base64').toString().split(':')
+    if (user !== AUTH_USER || pass !== AUTH_PASS) {
+      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Home Control"', 'Content-Type': 'text/html' })
+      res.end('<html><body><h2>Invalid credentials</h2></body></html>')
+      return
+    }
+
     if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
       try {
         const html = readFileSync('/Users/garyscudder/epg/control_page.html', 'utf-8')
