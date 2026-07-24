@@ -969,7 +969,8 @@ async function collectAllItems(ringApi) {
       console.log(`Hue skipped: ${err.message}`)
       return []
     }),
-    withTimeout(collectSmartThingsEvents(), ST_TIMEOUT_SECONDS * 1000, 'SmartThings collection').catch(async err => {
+    // SmartThings disabled - token expires every 24hrs
+    Promise.resolve([]).catch(async err => {
       console.log(`SmartThings skipped: ${err.message}`)
       if (err.message?.includes('401') || err.message?.includes('Unauthorized') || err.message?.includes('permission deny')) {
         if (!global.stTokenAlertSent) { global.stTokenAlertSent = true; await sendEventAlert([{
@@ -2189,6 +2190,42 @@ function startControlServer() {
         res.writeHead(200, {'Content-Type':'application/json'})
         res.end(JSON.stringify({ now, version: WATCHER_VERSION, security, lights, climate, tvs, appliances }))
       } catch(e) { res.writeHead(500); res.end(JSON.stringify({error: e.message})) }
+      return
+    }
+
+    // SmartThings OAuth callback
+    if (req.method === 'GET' && req.url?.startsWith('/smartthings/callback')) {
+      const url = new URL(req.url, 'http://localhost')
+      const code = url.searchParams.get('code')
+      if (!code) { res.writeHead(400); res.end('No code'); return }
+      try {
+        const ST_CLIENT_ID = process.env.ST_CLIENT_ID
+        const ST_CLIENT_SECRET = process.env.ST_CLIENT_SECRET
+        const tokenResp = await fetch('https://api.smartthings.com/oauth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code,
+            client_id: ST_CLIENT_ID,
+            client_secret: ST_CLIENT_SECRET,
+            redirect_uri: 'http://localhost:8446/smartthings/callback',
+          })
+        })
+        const tokens = await tokenResp.json()
+        console.log('ST OAuth tokens:', JSON.stringify(tokens))
+        if (tokens.access_token) {
+          // Save to .env
+          const { appendFileSync } = await import('fs')
+          appendFileSync('/Users/garyscudder/epg/st_token.json', JSON.stringify(tokens))
+          res.writeHead(200, {'Content-Type':'text/html'})
+          res.end('<h2>✅ SmartThings authorized! Access token saved. You can close this window.</h2>')
+          console.log('ST access_token:', tokens.access_token)
+          console.log('ST refresh_token:', tokens.refresh_token)
+        } else {
+          res.writeHead(500); res.end(JSON.stringify(tokens))
+        }
+      } catch(e) { res.writeHead(500); res.end(e.message) }
       return
     }
 
