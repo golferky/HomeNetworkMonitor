@@ -365,6 +365,7 @@ async function collectSmartThingsEvents() {
   if (response.status === 401) throw new Error('SmartThings 401 Unauthorized - token expired')
   const data = await response.json()
   if (!data.items) throw new Error(data.error || 'SmartThings API error')
+  global.stTokenAlertSent = false  // reset on success
   const devices = data.items || []
   const items = []
 
@@ -971,14 +972,14 @@ async function collectAllItems(ringApi) {
     withTimeout(collectSmartThingsEvents(), ST_TIMEOUT_SECONDS * 1000, 'SmartThings collection').catch(async err => {
       console.log(`SmartThings skipped: ${err.message}`)
       if (err.message?.includes('401') || err.message?.includes('Unauthorized') || err.message?.includes('permission deny')) {
-        await sendEventAlert([{
+        if (!global.stTokenAlertSent) { global.stTokenAlertSent = true; await sendEventAlert([{
           source: 'SmartThings',
           category: 'Sensor',
           name: 'SmartThings Token Expired',
           state: 'active',
           at: new Date().toISOString(),
           kind: 'sensor_triggered',
-        }])
+        }]) }
       }
       return []
     }),
