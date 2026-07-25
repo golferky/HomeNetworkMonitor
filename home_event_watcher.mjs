@@ -1301,7 +1301,7 @@ function getEventPriority(event) {
 const DASHBOARD_PORT   = parseInt(process.env.DASHBOARD_PORT   ?? '5558', 10)
 const CONTROL_PORT     = parseInt(process.env.CONTROL_PORT     ?? '5559', 10)
 
-function buildDashboard(history, devices) {
+async function buildDashboard(history, devices) {
   const states = history.states ?? {}
   const events = (history.events ?? []).slice(-50).reverse()
   const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
@@ -1348,6 +1348,28 @@ function buildDashboard(history, devices) {
 
   const batteryRows = btBattRows + ringBattRows + lockBattRow || '<tr><td colspan="3" style="color:#64748b">No battery data yet</td></tr>'
 
+  // Camera cards
+  let cameraCards = '<p style="color:#64748b">Camera snapshots will appear here once Ring API is connected</p>'
+  if (ringApiInstance) {
+    try {
+      const cameras = await ringApiInstance.getCameras()
+      cameraCards = cameras.map(cam => {
+        const snapUrl = `/snapshot/${encodeURIComponent(cam.name)}`
+        return `<div style="background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155">
+          <div style="padding:8px 12px;font-size:12px;font-weight:700;color:#e2e8f0">${cam.name}</div>
+          <a href="${snapUrl}" target="_blank">
+            <img src="${snapUrl}?t=${Date.now()}" style="width:100%;display:block;max-height:220px;object-fit:cover" 
+              onerror="this.style.display='none';this.nextSibling.style.display='block'">
+            <div style="display:none;padding:20px;text-align:center;color:#64748b;font-size:11px">Snapshot unavailable</div>
+          </a>
+          <div style="padding:6px 12px;font-size:10px;color:#64748b">${cam.deviceType}</div>
+        </div>`
+      }).join('')
+    } catch(e) {
+      cameraCards = `<p style="color:#f87171">Error loading cameras: ${e.message}</p>`
+    }
+  }
+
   const stateRows = Object.entries(states).map(([key, s]) => {
     const isActive = s.state === 'active' || s.state === 'on' || (s.state && !['off','clear','locked','closed'].includes(s.state.toLowerCase()))
     const dot = isActive ? '#4ade80' : '#374151'
@@ -1383,6 +1405,11 @@ function buildDashboard(history, devices) {
 <body>
 <h1>🏠 Home Monitor</h1>
 <div class="sub">Last updated: ${now} · Auto-refreshes every 60s · v${WATCHER_VERSION}</div>
+<div style="display:flex;gap:4px;margin-bottom:16px">
+  <button onclick="showTab('events')" id="tab-events" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#7c6af7;color:#fff;font-weight:700;cursor:pointer;font-size:12px">Events</button>
+  <button onclick="showTab('cameras')" id="tab-cameras" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">📷 Ring Cameras</button>
+</div>
+<div id="pane-events">
 
 <h2>Battery Levels</h2>
 <table>
@@ -1401,6 +1428,27 @@ function buildDashboard(history, devices) {
   <tr><th>Source</th><th>Device</th><th>State</th><th>Last Changed</th></tr>
   ${stateRows}
 </table>
+</div>
+
+<div id="pane-cameras" style="display:none">
+  <h2>Ring Cameras</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+    ${cameraCards}
+  </div>
+  <div style="color:#64748b;font-size:11px;margin-top:12px">Snapshots refresh every 60s · Click image for full size</div>
+</div>
+
+<script>
+function showTab(name) {
+  document.getElementById('pane-events').style.display = name==='events' ? 'block' : 'none'
+  document.getElementById('pane-cameras').style.display = name==='cameras' ? 'block' : 'none'
+  document.getElementById('tab-events').style.background = name==='events' ? '#7c6af7' : '#1e293b'
+  document.getElementById('tab-events').style.color = name==='events' ? '#fff' : '#94a3b8'
+  document.getElementById('tab-cameras').style.background = name==='cameras' ? '#7c6af7' : '#1e293b'
+  document.getElementById('tab-cameras').style.color = name==='cameras' ? '#fff' : '#94a3b8'
+}
+</script>
+
 </body>
 </html>`
 }
@@ -1809,12 +1857,27 @@ setInterval(checkStateHash, 5000)
 }
 
 function startDashboard() {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
+    // Camera snapshot endpoint
+    if (req.url?.startsWith('/snapshot/')) {
+      const camName = decodeURIComponent(req.url.replace('/snapshot/', ''))
+      try {
+        const cameras = await ringApiInstance?.getCameras() || []
+        const cam = cameras.find(c => c.name === camName)
+        if (!cam) { res.writeHead(404); res.end(); return }
+        const snapshot = await cam.getSnapshot()
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' })
+        res.end(snapshot)
+      } catch(e) {
+        res.writeHead(500); res.end()
+      }
+      return
+    }
     if (req.url !== '/' && req.url !== '/dashboard') { res.writeHead(404); res.end(); return }
     try {
       const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
       const devices = existsSync('devices.json') ? JSON.parse(readFileSync('devices.json', 'utf-8')) : { devices: [] }
-      const html = buildDashboard(history, devices)
+      const html = await buildDashboard(history, devices)
       res.writeHead(200, { 'Content-Type': 'text/html' })
       res.end(html)
     } catch(e) {
