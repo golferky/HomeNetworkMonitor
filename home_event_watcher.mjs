@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.24.6'
+const WATCHER_VERSION = '2026.07.24.7'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1449,11 +1449,18 @@ function showTab(name) {
   if (name === 'cameras') reloadSnapshots()
 }
 function reloadSnapshots() {
-  document.querySelectorAll('#pane-cameras img').forEach(img => {
-    const base = img.src.split('?')[0]
-    img.style.display = 'block'
-    img.nextSibling.style.display = 'none'
-    img.src = base + '?t=' + Date.now()
+  // Load snapshots one at a time with delay to avoid rate limiting
+  const imgs = [...document.querySelectorAll('#pane-cameras img')]
+  imgs.forEach((img, i) => {
+    setTimeout(() => {
+      const base = img.src.split('?')[0]
+      img.style.display = 'block'
+      if (img.nextElementSibling) img.nextElementSibling.style.display = 'none'
+      const newImg = new Image()
+      newImg.onload = () => { img.src = newImg.src }
+      newImg.onerror = () => { img.style.display = 'none'; if (img.nextElementSibling) img.nextElementSibling.style.display = 'block' }
+      newImg.src = base + '?t=' + Date.now()
+    }, i * 1500)  // 1.5 second delay between each camera
   })
 }
 </script>
