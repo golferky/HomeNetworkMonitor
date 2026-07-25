@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.24.7'
+const WATCHER_VERSION = '2026.07.24.9'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1876,16 +1876,37 @@ function startDashboard() {
   const server = http.createServer(async (req, res) => {
     // Camera snapshot endpoint
     if (req.url?.startsWith('/snapshot/')) {
-      const camName = decodeURIComponent(req.url.replace('/snapshot/', ''))
+      const camName = decodeURIComponent(req.url.replace('/snapshot/', '').split('?')[0])
       try {
-        const cameras = await ringApiInstance?.getCameras() || []
+        if (!ringApiInstance) {
+          console.log('Snapshot request: ringApiInstance not ready')
+          res.writeHead(503); res.end('Ring API not ready'); return
+        }
+        const cameras = await ringApiInstance.getCameras()
         const cam = cameras.find(c => c.name === camName)
-        if (!cam) { res.writeHead(404); res.end(); return }
-        const snapshot = await cam.getSnapshot()
-        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' })
-        res.end(snapshot)
+        if (!cam) {
+          console.log(`Snapshot: camera "${camName}" not found. Available: ${cameras.map(c=>c.name).join(', ')}`)
+          res.writeHead(404); res.end('Camera not found'); return
+        }
+        // Check if motion detection is enabled
+        const motionEnabled = cam.data?.led_status !== 'off' && cam.isMotionDetectionEnabled !== false
+        try {
+          const snapshot = await cam.getSnapshot()
+          res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' })
+          res.end(snapshot)
+        } catch(snapErr) {
+          if (snapErr.message?.includes('Motion detection is disabled')) {
+            // Return a placeholder SVG image
+            const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#1e293b"/><text x="320" y="165" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="16">Motion Detection Disabled</text><text x="320" y="195" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="12">${camName}</text><text x="320" y="220" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11">Enable in Ring app to see snapshots</text></svg>`)
+            res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' })
+            res.end(svg)
+          } else {
+            throw snapErr
+          }
+        }
       } catch(e) {
-        res.writeHead(500); res.end()
+        console.log(`Snapshot error for ${camName}:`, e.message)
+        res.writeHead(500); res.end(e.message)
       }
       return
     }
