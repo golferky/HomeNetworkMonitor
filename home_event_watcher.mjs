@@ -8,7 +8,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.24.5'
+const WATCHER_VERSION = '2026.07.24.6'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1446,6 +1446,15 @@ function showTab(name) {
   document.getElementById('tab-events').style.color = name==='events' ? '#fff' : '#94a3b8'
   document.getElementById('tab-cameras').style.background = name==='cameras' ? '#7c6af7' : '#1e293b'
   document.getElementById('tab-cameras').style.color = name==='cameras' ? '#fff' : '#94a3b8'
+  if (name === 'cameras') reloadSnapshots()
+}
+function reloadSnapshots() {
+  document.querySelectorAll('#pane-cameras img').forEach(img => {
+    const base = img.src.split('?')[0]
+    img.style.display = 'block'
+    img.nextSibling.style.display = 'none'
+    img.src = base + '?t=' + Date.now()
+  })
 }
 </script>
 
