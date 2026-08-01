@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { RingApi } from 'ring-client-api'
 import nodemailer from 'nodemailer'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
@@ -8,7 +9,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.07.24.9'
+const WATCHER_VERSION = '2026.08.01.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -854,6 +855,7 @@ async function collectPresenceEvents() {
       category: 'Sensor',
       name: device.name,
       state: online ? 'active' : 'clear',
+      minEventIntervalMinutes: device.minEventIntervalMinutes ?? null,
     })
   }
   return items
@@ -1001,12 +1003,17 @@ function findLikelyCause(history, now, lightKey) {
   const cutoff = now.getTime() - CAUSE_WINDOW_SECONDS * 1000
   return [...history.events]
     .reverse()
-    .find(event =>
-      event.at &&
-      new Date(event.at).getTime() >= cutoff &&
-      event.key !== lightKey &&
-      event.kind === 'sensor_triggered'
-    )
+    .find(event => {
+      if (!event.at) return false
+      if (new Date(event.at).getTime() < cutoff) return false
+      if (event.key === lightKey) return false
+      // sensor triggered, contact/motion events, lock/door changes, presence changes
+      return event.kind === 'sensor_triggered' ||
+             event.category === 'Contact' ||
+             event.category === 'Motion' ||
+             event.key?.includes('smartthings:') ||
+             event.key?.includes('presence:')
+    })
 }
 
 function updateTimeline(items) {
@@ -1029,6 +1036,20 @@ function updateTimeline(items) {
     }
 
     if (previous.state !== item.state) {
+      // Throttle noisy devices: skip event if last event for this key is too recent
+      if (item.minEventIntervalMinutes) {
+        const minMs = item.minEventIntervalMinutes * 60 * 1000
+        const lastEvt = [...history.events].reverse().find(e => e.key === item.key)
+        if (lastEvt && now.getTime() - new Date(lastEvt.at).getTime() < minMs) {
+          history.states[item.key] = {
+            source: item.source, category: item.category, name: item.name,
+            state: item.state, lastSeenAt: now.toISOString(),
+            lastChangedAt: previous.lastChangedAt,
+          }
+          continue
+        }
+      }
+
       const event = {
         at: now.toISOString(),
         key: item.key,
@@ -1044,7 +1065,7 @@ function updateTimeline(items) {
         event.kind = 'sensor_triggered'
       }
 
-      if (item.category === 'Light' && item.state === 'on') {
+      if (item.category === 'Light') {
         const cause = findLikelyCause(history, now, item.key)
         if (cause) {
           event.likelyCause = {
@@ -1115,13 +1136,12 @@ function formatEvent(event) {
     }
   }
 
-  let msg = `${displayName} ${action} at ${time}`
+  let msg = `[${event.source}] ${event.name} ${action} at ${time}${event._trigger ?? ''}`
 
   if (event.likelyCause) {
     const causeTime = new Date(event.likelyCause.at)
     const seconds = Math.max(0, Math.round((new Date(event.at).getTime() - causeTime.getTime()) / 1000))
-    const causeName = friendlyName(event.likelyCause.source, event.likelyCause.name)
-    msg += `\n  -> likely triggered by ${causeName} ${seconds}s earlier`
+    msg += `\n  -> likely caused by [${event.likelyCause.source}] ${event.likelyCause.name} (${seconds}s earlier)`
   }
 
   return msg
@@ -1141,13 +1161,11 @@ async function sendIMessage(target, message) {
 }
 
 async function sendEventAlert(events) {
+  // Alert on everything — filter out only pure info-noise (iPhone/network presence flips)
   const important = events.filter(event => {
-    const priority = getEventPriority(event)
-    if (priority === 'critical' || priority === 'important') return true
-    // Also include light/sensor changes that aren't info-only
-    if (event.category === 'Light' && event.source !== 'Bluetooth') return true
-    if (event.kind === 'sensor_triggered') return true
-    return false
+    // Skip presence events for phones — too noisy
+    if (event.source === 'Network' && event.category === 'Sensor') return false
+    return true
   })
   if (important.length === 0) return
 
@@ -1157,10 +1175,17 @@ async function sendEventAlert(events) {
   }
 
   const title = important.length === 1
-    ? `Home Alert: ${friendlyName(important[0].source, important[0].name)}`
+    ? `Home Alert: [${important[0].source}] ${important[0].name}`
     : `Home Alert: ${important.length} events`
 
-  const body = important.map(formatEvent).join('\n')
+  // Check if all events are simultaneous (same minute) — suggests one automation triggered them
+  let simultaneousNote = ''
+  if (important.length > 1) {
+    const minutes = new Set(important.map(e => e.at ? e.at.slice(0, 16) : ''))
+    if (minutes.size === 1) simultaneousNote = ' (all simultaneous — likely one automation/schedule)'
+  }
+
+  const body = important.map(formatEvent).join('\n') + simultaneousNote
   const message = `${title}\n${body}`
 
   // Try iMessage first
@@ -1320,20 +1345,47 @@ async function buildDashboard(history, devices) {
     return `<tr><td>Bluetooth</td><td>${b.name}</td><td>${parts}</td></tr>`
   }).join('')
 
-  // Ring batteries from history file
+  // Ring batteries — cameras live from API, sensors from history file
   let ringBattRows = ''
   try {
-    const ringHistory = JSON.parse(readFileSync('ring_battery_history.json', 'utf-8'))
-    const latest = {}
-    for (const r of (ringHistory.readings || [])) {
-      if (r.battery != null) latest[r.name] = r
-    }
-    ringBattRows = Object.values(latest).sort((a,b) => (a.battery??100)-(b.battery??100)).map(r => {
-      const pct = r.battery ?? 0
+    const battPct = (pct) => {
       const color = pct < 20 ? '#f87171' : pct < 50 ? '#fbbf24' : '#4ade80'
-      const warn = pct < 20 ? ' ⚠️' : pct < 50 ? ' 🔋' : ''
-      return `<tr><td>Ring</td><td>${r.name} (${r.category})</td><td><span style="color:${color}">${pct}%${warn}</span></td></tr>`
-    }).join('')
+      const warn  = pct < 20 ? ' ⚠️' : pct < 50 ? ' 🔋' : ''
+      return `<span style="color:${color}">${pct}%${warn}</span>`
+    }
+    const ringBattEntries = []
+
+    // Live camera batteries from Ring API
+    if (ringApiInstance) {
+      const cams = await ringApiInstance.getCameras()
+      for (const cam of cams) {
+        const d = cam.data ?? {}
+        const b1 = d.battery_life   != null ? parseInt(d.battery_life,   10) : null
+        const b2 = d.battery_life_2 != null ? parseInt(d.battery_life_2, 10) : null
+        if (b1 == null) continue  // wired/no battery
+        const minPct = b2 != null ? Math.min(b1, b2) : b1
+        const dispHtml = b2 != null ? `${battPct(b1)} / ${battPct(b2)}` : battPct(b1)
+        const kind = d.kind ?? cam.deviceType ?? 'Camera'
+        const label = kind.includes('doorbell') ? 'Doorbell' : 'Camera'
+        ringBattEntries.push({ minPct, html: `<tr><td>Ring</td><td>${cam.name} (${label})</td><td>${dispHtml}</td></tr>` })
+      }
+    }
+
+    // Non-camera Ring devices (sensors, mailbox, etc.) from history file
+    try {
+      const ringHistory = JSON.parse(readFileSync('ring_battery_history.json', 'utf-8'))
+      const latest = {}
+      for (const r of (ringHistory.readings || [])) {
+        if (r.battery != null && !['Camera','Doorbell'].includes(r.category)) latest[r.name] = r
+      }
+      for (const r of Object.values(latest)) {
+        ringBattEntries.push({ minPct: r.battery ?? 0, html: `<tr><td>Ring</td><td>${r.name} (${r.category})</td><td>${battPct(r.battery ?? 0)}</td></tr>` })
+      }
+    } catch(e) {}
+
+    ringBattRows = ringBattEntries
+      .sort((a, b) => a.minPct - b.minPct)
+      .map(e => e.html).join('')
   } catch(e) {}
 
   // SmartThings lock battery
@@ -1352,21 +1404,148 @@ async function buildDashboard(history, devices) {
   let cameraCards = '<p style="color:#64748b">Camera snapshots will appear here once Ring API is connected</p>'
   if (ringApiInstance) {
     try {
-      const cameras = await ringApiInstance.getCameras()
+      const cameras = [...(await ringApiInstance.getCameras())].sort((a, b) => {
+        const aOn = a.data?.settings?.motion_detection_enabled !== false ? 0 : 1
+        const bOn = b.data?.settings?.motion_detection_enabled !== false ? 0 : 1
+        return aOn - bOn
+      })
       cameraCards = cameras.map(cam => {
         const snapUrl = `/snapshot/${encodeURIComponent(cam.name)}`
-        return `<div style="background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155">
-          <div style="padding:8px 12px;font-size:12px;font-weight:700;color:#e2e8f0">${cam.name}</div>
+        const d = cam.data ?? {}
+
+        // Battery — parse as int (API returns strings or numbers)
+        const batt1 = d.battery_life   != null ? parseInt(d.battery_life,   10) : null
+        const batt2 = d.battery_life_2 != null ? parseInt(d.battery_life_2, 10) : null
+        function battSpan(pct, label) {
+          const color = pct < 20 ? '#f87171' : pct < 50 ? '#fbbf24' : '#4ade80'
+          return `<span style="color:${color};font-size:11px;font-weight:600">🔋${label ? label+':' : ''}${pct}%</span>`
+        }
+        let battHtml
+        if (batt1 != null && batt2 != null) {
+          battHtml = battSpan(batt1, '1') + ' ' + battSpan(batt2, '2')
+        } else if (batt1 != null) {
+          battHtml = battSpan(batt1, '')
+        } else {
+          battHtml = `<span title="Wired power" style="color:#64748b;font-size:11px">⚡ Wired</span>`
+        }
+
+        // WiFi signal strength (dBm → bars)
+        const rssi = d.latest_signal_strength ?? d.wifi_signal_strength ?? null
+        let signalHtml = ''
+        if (rssi != null) {
+          const bars = rssi >= -50 ? '▂▄▆█' : rssi >= -65 ? '▂▄▆' : rssi >= -75 ? '▂▄' : '▂'
+          const sigColor = rssi >= -65 ? '#4ade80' : rssi >= -75 ? '#fbbf24' : '#f87171'
+          signalHtml = `<span title="WiFi ${rssi} dBm" style="color:${sigColor};letter-spacing:1px">${bars}</span>`
+        }
+
+        // Last motion
+        const lastMotionTs = d.last_motion_at ?? d.last_ding_at ?? null
+        const lastMotionHtml = lastMotionTs
+          ? `<span title="Last motion" style="color:#94a3b8">🕐 ${new Date(lastMotionTs * 1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})}</span>`
+          : ''
+
+        // Motion detection toggle — read from data.settings (not stale isMotionDetectionEnabled)
+        const motionOn = d.settings?.motion_detection_enabled !== false
+        const motionBg    = motionOn ? '#22c55e22' : '#f8717122'
+        const motionBord  = motionOn ? '#22c55e'   : '#f87171'
+        const motionColor = motionOn ? '#4ade80'   : '#f87171'
+        const motionLabel = motionOn ? '🔴 Motion On' : '⚪ Motion Off'
+        const motionTitle = motionOn ? 'Disable motion detection' : 'Enable motion detection'
+        const motionHtml = `<button data-cam="${encodeURIComponent(cam.name)}" onclick="toggleMotion(this,'${encodeURIComponent(cam.name)}',${!motionOn})" title="${motionTitle}" style="background:${motionBg};border:1px solid ${motionBord};color:${motionColor};border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer">${motionLabel}</button>`
+
+        // Safe ID for DOM references
+        const safeId = cam.name.replace(/[^a-z0-9]/gi,'_')
+
+        // Gear popup info
+        const gearId = `gear-${safeId}`
+        const fwLine   = d.firmware_version ? `<div>Firmware: ${d.firmware_version}</div>` : ''
+        const locLine  = d.location_id      ? `<div>Location ID: ${d.location_id}</div>`   : ''
+        const rssiLine = rssi != null        ? `<div>Signal: ${rssi} dBm</div>`             : ''
+        const battLine = batt1 != null ? `<div>Battery: ${batt1}%${batt2 != null ? ' / ' + batt2 + '%' : ''}</div>` : ''
+        const gearHtml = `<span title="Camera info" style="cursor:pointer;color:#64748b;font-size:13px" onclick="var el=document.getElementById('${gearId}');el.style.display=el.style.display==='none'?'block':'none'">⚙️</span><div id="${gearId}" style="display:none;position:absolute;right:8px;top:36px;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:11px;color:#94a3b8;z-index:10;min-width:200px;line-height:1.8"><div><strong style="color:#e2e8f0">${cam.name}</strong></div><div>Type: ${d.kind ?? cam.deviceType}</div>${fwLine}${locLine}${rssiLine}${battLine}</div>`
+
+        return `<div style="background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155;position:relative">
+          <div style="padding:8px 12px;font-size:12px;font-weight:700;color:#e2e8f0;display:flex;justify-content:space-between;align-items:center">
+            <span>${cam.name}</span>
+            <span style="display:flex;gap:8px;align-items:center">${battHtml}${gearHtml}</span>
+          </div>
           <a href="${snapUrl}" target="_blank">
-            <img src="${snapUrl}?t=${Date.now()}" style="width:100%;display:block;max-height:220px;object-fit:cover" 
+            <img src="${snapUrl}?t=${Date.now()}" data-snap-id="${safeId}" style="width:100%;display:block;max-height:220px;object-fit:cover"
+              onload="var el=document.getElementById('snap-time-${safeId}');if(el)el.textContent='📸 '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true})"
               onerror="this.style.display='none';this.nextSibling.style.display='block'">
             <div style="display:none;padding:20px;text-align:center;color:#64748b;font-size:11px">Snapshot unavailable</div>
           </a>
-          <div style="padding:6px 12px;font-size:10px;color:#64748b">${cam.deviceType}</div>
+          <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px;border-top:1px solid #334155">
+            ${signalHtml}
+            ${lastMotionHtml}
+            <span id="snap-time-${safeId}" style="color:#475569;font-size:10px"></span>
+            <span style="margin-left:auto">${motionHtml}</span>
+          </div>
         </div>`
       }).join('')
     } catch(e) {
       cameraCards = `<p style="color:#f87171">Error loading cameras: ${e.message}</p>`
+    }
+  }
+
+  // Ring alarm/sensor devices
+  let ringDeviceRows = ''
+  if (ringApiInstance) {
+    try {
+      const skipTypes = ['base-station-v1', 'base-station', 'security-keypad', 'range-extender', 'hub']
+      const locations = await ringApiInstance.getLocations()
+      const allDevices = []
+      for (const loc of locations) {
+        let devs = []
+        try { devs = await loc.getDevices() } catch { /* no alarm hub */ }
+        for (const d of devs) {
+          const data = d.data
+          const name = data.name ?? data.deviceType ?? 'Unknown'
+          if (skipTypes.some(t => (data.deviceType ?? '').includes(t))) continue
+          const dt = data.deviceType ?? ''
+          let icon = '📡'
+          if (dt.includes('contact'))       icon = '🚪'
+          else if (dt.includes('motion'))   icon = '👁'
+          else if (dt.includes('lock'))     icon = '🔒'
+          else if (dt.includes('light') || dt.includes('beam')) icon = '💡'
+          else if (dt.includes('siren'))    icon = '🚨'
+          else if (dt.includes('freeze'))   icon = '❄️'
+          else if (dt.includes('smoke'))    icon = '🔥'
+          // Open/closed state
+          let state = null
+          const checks = [data.faulted, data.open, data.opened, data.isOpen, data.motionDetected, data.motion, data.status, data.state]
+          for (const v of checks) {
+            if (v === true) { state = true; break }
+            if (v === false) { state = false; break }
+            if (typeof v === 'string') {
+              const n = v.toLowerCase()
+              if (['open','opened','active','motion','detected','faulted'].includes(n)) { state = true; break }
+              if (['closed','clear','inactive','idle','ok'].includes(n)) { state = false; break }
+            }
+          }
+          const stateLabel = state === true ? '<span style="color:#f87171">Open/Active</span>' : state === false ? '<span style="color:#4ade80">Closed/Clear</span>' : '<span style="color:#64748b">Unknown</span>'
+          // Battery
+          const batt = data.batteryLevel != null ? Math.round(data.batteryLevel) : null
+          const battColor = batt == null ? '#64748b' : batt < 20 ? '#f87171' : batt < 50 ? '#fbbf24' : '#4ade80'
+          const battHtml = batt != null ? `<span style="color:${battColor}">🔋${batt}%</span>` : `<span style="color:#64748b">–</span>`
+          allDevices.push({ icon, name, dt, stateLabel, battHtml, state })
+        }
+      }
+      // Sort: open/active first, then by name
+      allDevices.sort((a, b) => {
+        const aScore = a.state === true ? 0 : a.state === false ? 1 : 2
+        const bScore = b.state === true ? 0 : b.state === false ? 1 : 2
+        return aScore - bScore || a.name.localeCompare(b.name)
+      })
+      if (allDevices.length) {
+        ringDeviceRows = allDevices.map(d =>
+          `<tr><td>${d.icon} ${d.name}</td><td style="color:#64748b;font-size:11px">${d.dt}</td><td>${d.stateLabel}</td><td>${d.battHtml}</td></tr>`
+        ).join('')
+      } else {
+        ringDeviceRows = '<tr><td colspan="4" style="color:#64748b">No alarm/sensor devices found</td></tr>'
+      }
+    } catch(e) {
+      ringDeviceRows = `<tr><td colspan="4" style="color:#f87171">Error loading devices: ${e.message}</td></tr>`
     }
   }
 
@@ -1384,11 +1563,37 @@ async function buildDashboard(history, devices) {
     return `<tr><td style="color:${color}">${priority}</td><td>${time}</td><td>${e.source}</td><td>${e.name}</td><td>${e.previousState ?? ''} → ${e.state}</td></tr>`
   }).join('')
 
+  // Device alert stats — count events per device from full history
+  const allHistory = loadHistory()
+  const now24 = Date.now() - 86400000
+  const now7d  = Date.now() - 7 * 86400000
+  const statMap = {}
+  for (const e of allHistory.events) {
+    const k = `${e.source}:${e.name}`
+    if (!statMap[k]) statMap[k] = { source: e.source, name: e.name, total: 0, last24h: 0, last7d: 0, lastAt: null }
+    const s = statMap[k]
+    s.total++
+    const t = new Date(e.at).getTime()
+    if (t >= now24) s.last24h++
+    if (t >= now7d)  s.last7d++
+    if (!s.lastAt || t > new Date(s.lastAt).getTime()) s.lastAt = e.at
+  }
+  const deviceRegistry = loadDeviceRegistry()
+  const statRows = Object.values(statMap)
+    .sort((a, b) => b.last7d - a.last7d)
+    .map(s => {
+      const lastStr = s.lastAt ? new Date(s.lastAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : '—'
+      const heat24 = s.last24h >= 20 ? '#f87171' : s.last24h >= 5 ? '#fbbf24' : '#4ade80'
+      const heat7d  = s.last7d  >= 100 ? '#f87171' : s.last7d  >= 30 ? '#fbbf24' : '#4ade80'
+      const devEntry = deviceRegistry.find(d => d.name === s.name)
+      const minInt = devEntry?.minEventIntervalMinutes ? `<span style="color:#64748b;font-size:10px"> (throttle: ${devEntry.minEventIntervalMinutes}m)</span>` : ''
+      return `<tr><td>${s.source}</td><td>${s.name}${minInt}</td><td style="color:${heat24};text-align:right">${s.last24h}</td><td style="color:${heat7d};text-align:right">${s.last7d}</td><td style="text-align:right">${s.total}</td><td>${lastStr}</td></tr>`
+    }).join('')
+
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="60">
 <title>Home Monitor</title>
 <style>
   body{background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;margin:0;padding:20px}
@@ -1404,10 +1609,18 @@ async function buildDashboard(history, devices) {
 </head>
 <body>
 <h1>🏠 Home Monitor</h1>
-<div class="sub">Last updated: ${now} · Auto-refreshes every 60s · v${WATCHER_VERSION}</div>
+<div class="sub" style="display:flex;align-items:center;gap:12px">
+  <span>Last updated: ${now} · v${WATCHER_VERSION}</span>
+  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#64748b">
+    <input type="checkbox" id="autorefresh-cb" style="cursor:pointer" checked>
+    Auto-refresh (60s)
+  </label>
+</div>
 <div style="display:flex;gap:4px;margin-bottom:16px">
   <button onclick="showTab('events')" id="tab-events" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#7c6af7;color:#fff;font-weight:700;cursor:pointer;font-size:12px">Events</button>
   <button onclick="showTab('cameras')" id="tab-cameras" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">📷 Ring Cameras</button>
+  <button onclick="showTab('services')" id="tab-services" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">🖥️ Mac Mini Services</button>
+  <button onclick="showTab('qnap')" id="tab-qnap" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">🗄️ QNAP</button>
 </div>
 <div id="pane-events">
 
@@ -1428,26 +1641,333 @@ async function buildDashboard(history, devices) {
   <tr><th>Source</th><th>Device</th><th>State</th><th>Last Changed</th></tr>
   ${stateRows}
 </table>
+
+<h2>Device Alert Stats</h2>
+<p style="color:#64748b;font-size:11px;margin:0 0 8px">Red = noisy · Green = quiet · Shows throttle setting if set</p>
+<table>
+  <tr><th>Source</th><th>Device</th><th style="text-align:right">24h</th><th style="text-align:right">7d</th><th style="text-align:right">Total</th><th>Last Event</th></tr>
+  ${statRows}
+</table>
 </div>
 
 <div id="pane-cameras" style="display:none">
   <h2>Ring Cameras</h2>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+  <div class="camera-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
     ${cameraCards}
   </div>
   <div style="color:#64748b;font-size:11px;margin-top:12px">Snapshots refresh every 60s · Click image for full size</div>
+
+  <h2 style="margin-top:24px">Ring Devices</h2>
+  <table>
+    <tr><th>Device</th><th>Type</th><th>State</th><th>Battery</th></tr>
+    ${ringDeviceRows}
+  </table>
+</div>
+
+<div id="pane-services" style="display:none">
+  <h2>Running Services &amp; Ports</h2>
+  <table id="services-table">
+    <tr><th>Port</th><th>Process</th><th>PID</th><th>Description</th></tr>
+    <tr><td colspan="4" style="color:#64748b">Loading...</td></tr>
+  </table>
+  <p style="color:#64748b;font-size:11px;margin-top:8px">Shows all TCP ports listening on this machine · Refreshes on tab switch</p>
+
+  <h2 style="margin-top:24px">Launch Agents (Auto-start on Login)</h2>
+  <table id="agents-table">
+    <tr><th>Status</th><th>Label</th><th>Script</th></tr>
+    <tr><td colspan="3" style="color:#64748b">Loading...</td></tr>
+  </table>
+</div>
+
+<div id="pane-qnap" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <h2 style="margin:0">QNAP NAS — System Overview</h2>
+    <button onclick="qnapForceRefresh()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px">⟳ Refresh</button>
+  </div>
+  <div id="qnap-status" style="color:#64748b;font-size:12px;margin-bottom:8px">Loading…</div>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px">
+    <div style="flex:1;min-width:220px">
+      <h3 style="margin:0 0 8px;color:#94a3b8">System Info</h3>
+      <table id="qnap-sysinfo-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td colspan="2" style="color:#64748b">Loading...</td></tr>
+      </table>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <h3 style="margin:0 0 8px;color:#94a3b8">CPU &amp; Memory</h3>
+      <div id="qnap-gauges" style="padding:8px 0"></div>
+    </div>
+  </div>
+
+  <h3 style="color:#94a3b8">Storage Map</h3>
+  <div id="qnap-storage-map" style="margin-bottom:20px">
+    <div style="color:#64748b;font-size:12px">Loading...</div>
+  </div>
+
+  <h3 style="color:#94a3b8">Drive Health</h3>
+  <table id="qnap-disks-table">
+    <tr><th>Drive</th><th>Model</th><th>Temp</th><th>Health</th><th>Capacity</th></tr>
+    <tr><td colspan="5" style="color:#64748b">Loading...</td></tr>
+  </table>
+
+  <h3 style="margin-top:20px;color:#94a3b8">Installed Apps / Services</h3>
+  <table id="qnap-apps-table">
+    <tr><th>Status</th><th>Name</th><th>Version</th></tr>
+    <tr><td colspan="3" style="color:#64748b">Loading...</td></tr>
+  </table>
+
+  <h3 style="margin-top:20px;color:#94a3b8">Shared Folders</h3>
+  <div id="qnap-shares" style="margin-bottom:12px">
+    <div style="color:#64748b;font-size:12px">Loading...</div>
+  </div>
+
+  <p style="color:#64748b;font-size:11px;margin-top:12px">Connects to QNAP at 192.168.1.176 via SNMP · Refreshes on tab switch · Click a share to open in Finder</p>
 </div>
 
 <script>
-function showTab(name) {
-  document.getElementById('pane-events').style.display = name==='events' ? 'block' : 'none'
-  document.getElementById('pane-cameras').style.display = name==='cameras' ? 'block' : 'none'
-  document.getElementById('tab-events').style.background = name==='events' ? '#7c6af7' : '#1e293b'
-  document.getElementById('tab-events').style.color = name==='events' ? '#fff' : '#94a3b8'
-  document.getElementById('tab-cameras').style.background = name==='cameras' ? '#7c6af7' : '#1e293b'
-  document.getElementById('tab-cameras').style.color = name==='cameras' ? '#fff' : '#94a3b8'
-  if (name === 'cameras') reloadSnapshots()
+const SERVICE_LABELS = {
+  '5555': 'Hue webhook listener',
+  '5558': 'Home Monitor dashboard',
+  '5559': 'Home Monitor control',
+  '5560': 'Speed Monitor dashboard',
+  '80':   'HTTP',
+  '443':  'HTTPS',
+  '22':   'SSH',
+  '3000': 'Node dev server',
+  '8080': 'HTTP alt',
 }
+
+async function loadServices() {
+  try {
+    const data = await (await fetch('/api/services')).json()
+    const rows = data.ports.map(p => {
+      return '<tr><td><strong>' + p.port + '</strong></td><td style="color:#94a3b8">' + p.process + '</td><td style="color:#64748b">' + p.pid + '</td><td style="color:#7c6af7">' + (p.description ?? '') + '</td></tr>'
+    }).join('')
+    document.getElementById('services-table').innerHTML = '<tr><th>Port</th><th>Process</th><th>PID</th><th>Description</th></tr>' + (rows || '<tr><td colspan="4" style="color:#64748b">No listening ports found</td></tr>')
+
+    const agentRows = (data.launchAgents ?? []).map(a => {
+      const dot = a.running ? '<span style="color:#4ade80">● Running</span>' : '<span style="color:#f87171">● Stopped</span>'
+      return '<tr><td>' + dot + '</td><td style="color:#e2e8f0;font-size:11px">' + a.label + '</td><td style="color:#64748b;font-size:11px;word-break:break-all">' + a.script + '</td></tr>'
+    }).join('')
+    document.getElementById('agents-table').innerHTML = '<tr><th>Status</th><th>Label</th><th>Script</th></tr>' + (agentRows || '<tr><td colspan="3" style="color:#64748b">None found</td></tr>')
+  } catch(e) {
+    document.getElementById('services-table').innerHTML = '<tr><td colspan="4" style="color:#f87171">Error: ' + e.message + '</td></tr>'
+  }
+}
+
+async function qnapForceRefresh() {
+  await fetch('/api/qnap/refresh', { method: 'POST' })
+  loadQnap()
+}
+async function loadQnap() {
+  document.getElementById('qnap-status').textContent = 'Connecting to QNAP…'
+  try {
+    const data = await (await fetch('/api/qnap')).json()
+    window._qnapHost = data.host || '192.168.1.176'
+    if (data.error) {
+      document.getElementById('qnap-status').innerHTML = '<span style="color:#f87171">⚠ ' + data.error + '</span>'
+      return
+    }
+    document.getElementById('qnap-status').innerHTML = '<span style="color:#4ade80">● Connected</span> · ' + data.host + (data.sysinfo?.firmware ? ' · QTS ' + data.sysinfo.firmware : '')
+
+    // System info table
+    const info = data.sysinfo ?? {}
+    const infoFields = [
+      ['Model', info.model],
+      ['Hostname', info.hostname],
+      ['Firmware', info.firmware],
+      ['Uptime', info.uptime],
+    ].filter(([,v]) => v != null)
+    const infoRows = infoFields.map(([k,v]) => '<tr><td style="color:#94a3b8">' + k + '</td><td style="color:#e2e8f0">' + v + '</td></tr>').join('')
+    document.getElementById('qnap-sysinfo-table').innerHTML = '<tr><th>Field</th><th>Value</th></tr>' + (infoRows || '<tr><td colspan="2" style="color:#64748b">No data</td></tr>')
+
+    // CPU & Memory gauges
+    function makeGauge(label, pct, color) {
+      const c = pct != null ? Math.min(Math.max(parseInt(pct),0),100) : 0
+      const gc = c > 85 ? '#f87171' : c > 65 ? '#fbbf24' : color
+      return '<div style="margin-bottom:12px">' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:3px"><span>' + label + '</span><span style="color:#e2e8f0;font-weight:700">' + (pct != null ? pct + '%' : '—') + '</span></div>' +
+        '<div style="background:#1e293b;border-radius:4px;height:10px;overflow:hidden"><div style="background:' + gc + ';width:' + c + '%;height:100%;border-radius:4px;transition:width 0.4s"></div></div>' +
+        '</div>'
+    }
+    const cpuPct  = info.cpu_usage  != null ? parseInt(info.cpu_usage)  : null
+    const memPct  = (info.mem_used && info.mem_total) ? Math.round(parseInt(info.mem_used)/parseInt(info.mem_total)*100) : null
+    document.getElementById('qnap-gauges').innerHTML =
+      makeGauge('CPU', cpuPct, '#7c6af7') +
+      makeGauge('Memory', memPct, '#38bdf8') +
+      (info.mem_used ? '<div style="font-size:10px;color:#64748b">' + info.mem_used + ' / ' + info.mem_total + ' MB</div>' : '')
+
+    // Storage Map — visual bars per volume
+    const vols = data.volumes ?? []
+    const storageHtml = vols.length ? vols.map(v => {
+      const pct = v.used_pct ?? 0
+      const barColor = pct > 90 ? '#f87171' : pct > 75 ? '#fbbf24' : '#4ade80'
+      const statusDot = v.status?.toLowerCase().includes('ready') || v.status?.toLowerCase().includes('normal')
+        ? '<span style="color:#4ade80">●</span>' : '<span style="color:#f87171">●</span>'
+      return '<div style="margin-bottom:16px;background:#1e293b;border-radius:8px;padding:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<span style="color:#e2e8f0;font-weight:700">' + (v.label ?? '?') + '</span>' +
+          '<span style="font-size:11px">' + statusDot + ' ' + (v.status ?? '?') + '</span>' +
+        '</div>' +
+        '<div style="background:#0f172a;border-radius:4px;height:16px;overflow:hidden;margin-bottom:6px">' +
+          '<div style="background:' + barColor + ';width:' + pct + '%;height:100%;border-radius:4px;transition:width 0.4s"></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b">' +
+          '<span>Used: <strong style="color:#e2e8f0">' + (v.used ?? '?') + '</strong> (' + pct + '%)</span>' +
+          '<span>Free: <strong style="color:#94a3b8">' + (v.free ?? '?') + '</strong> / ' + (v.total ?? '?') + '</span>' +
+        '</div>' +
+      '</div>'
+    }).join('') : '<div style="color:#64748b;font-size:12px">No volumes found</div>'
+    document.getElementById('qnap-storage-map').innerHTML = storageHtml
+
+    // Drive Health table
+    const disks = data.disks ?? []
+    const diskRows = disks.map(d => {
+      const t = d.temp != null ? parseInt(d.temp) : null
+      const isF = d.tempUnit === 'F'
+      const tempColor = t != null ? (t > (isF?122:50) ? '#f87171' : t > (isF?104:40) ? '#fbbf24' : '#4ade80') : '#64748b'
+      const h = (d.health ?? '').toLowerCase()
+      const healthColor = h === 'empty' ? '#475569' : (h.includes('good') || h.includes('normal') ? '#4ade80' : '#f87171')
+      const m = d.model ?? ''
+      const brand = m.startsWith('WUH') || m.startsWith('WD') ? 'WD' :
+                    m.startsWith('ST') ? 'Seagate' :
+                    m.startsWith('HGST') ? 'HGST' :
+                    m.startsWith('MK') || m.startsWith('MQ') || m.startsWith('HDWD') ? 'Toshiba' :
+                    m.startsWith('MZ') || m.startsWith('MZNL') ? 'Samsung' : ''
+      return '<tr>' +
+        '<td style="color:#e2e8f0">' + (d.slot ?? d.id ?? '?') + '</td>' +
+        '<td style="color:#94a3b8;font-size:11px">' + (brand ? '<span style="color:#7c6af7;font-size:10px;margin-right:4px">' + brand + '</span>' : '') + (m || '—') + '</td>' +
+        '<td style="color:' + tempColor + '">' + (t != null ? t + '°F' : '—') + '</td>' +
+        '<td style="color:' + healthColor + '">' + (d.health ?? '—') + '</td>' +
+        '<td style="color:#64748b">' + (d.capacity ?? '—') + '</td>' +
+      '</tr>'
+    }).join('')
+    document.getElementById('qnap-disks-table').innerHTML = '<tr><th>Drive</th><th>Brand / Model</th><th>Temp</th><th>Health</th><th>Capacity</th></tr>' + (diskRows || '<tr><td colspan="5" style="color:#64748b">No disk info available</td></tr>')
+
+    // Apps
+    const apps = data.apps ?? []
+    const appRows = apps.map(a => {
+      const dot = a.status === 'enabled' || a.status === 'running' ? '<span style="color:#4ade80">● Enabled</span>' : '<span style="color:#64748b">● ' + (a.status ?? 'disabled') + '</span>'
+      return '<tr><td>' + dot + '</td><td style="color:#e2e8f0">' + a.name + '</td><td style="color:#64748b;font-size:11px">' + (a.version ?? '') + '</td></tr>'
+    }).join('')
+    document.getElementById('qnap-apps-table').innerHTML = appRows
+      ? '<tr><th>Status</th><th>Name</th><th>Version</th></tr>' + appRows
+      : '<tr><td colspan="3" style="color:#475569;font-size:12px">App list unavailable — QNAP QTS 5 uses passkey-only authentication</td></tr>'
+
+    // Shared Folders — clickable chips to open in Finder via SMB
+    const shareList = data.shares ?? []
+    if (shareList.length) {
+      const chips = shareList.map(s => {
+        const safe = s.replace(/"/g, '&quot;')
+        return '<button class="share-chip" onclick="openQnapShare(this.dataset.n)" data-n="' + safe + '">📁 ' + s + '</button>'
+      }).join('')
+      document.getElementById('qnap-shares').innerHTML =
+        '<style>.share-chip{background:#1e293b;border:1px solid #334155;color:#93c5fd;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;margin:3px;transition:background 0.15s}.share-chip:hover{background:#2d3f55}</style>' +
+        '<div style="font-size:11px;color:#64748b;margin-bottom:6px">Click to open in Finder:</div>' + chips
+    } else {
+      document.getElementById('qnap-shares').innerHTML =
+        '<div style="color:#64748b;font-size:12px">No shares found (requires SSH)</div>'
+    }
+  } catch(e) {
+    document.getElementById('qnap-status').innerHTML = '<span style="color:#f87171">Error: ' + e.message + '</span>'
+  }
+}
+
+async function openQnapShare(name) {
+  var ua = navigator.userAgent || ''
+  var plat = navigator.platform || ''
+  var isMac = plat.indexOf('Mac') === 0 && navigator.maxTouchPoints <= 1
+  var isIOS = /iPhone|iPad/.test(ua) || (plat.indexOf('Mac') === 0 && navigator.maxTouchPoints > 1)
+  var isAndroid = /Android/.test(ua)
+  var host = window._qnapHost || '192.168.1.176'
+  var smbUrl = 'smb://' + host + '/' + encodeURIComponent(name)
+  var bs = String.fromCharCode(92)
+  var uncPath = bs + bs + host + bs + name
+
+  if (isMac) {
+    // Mac desktop: open Finder via server-side exec
+    try {
+      var r = await fetch('/api/qnap/open-share?name=' + encodeURIComponent(name))
+      if (!r.ok) throw new Error('Server error ' + r.status)
+      var btn = document.querySelector('#qnap-shares button[data-n="' + name + '"]')
+      if (btn) { var orig = btn.textContent; btn.textContent = '✓ Opening…'; setTimeout(function(){ btn.textContent = orig }, 1500) }
+    } catch(e) { alert('Could not open share: ' + e.message) }
+    return
+  }
+
+  // All other platforms: show modal
+  var modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px'
+  var h = '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;max-width:380px;width:100%;box-sizing:border-box">'
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+  h += '<span style="color:#e2e8f0;font-weight:700;font-size:14px">📁 ' + name + '</span>'
+  h += '<button id="_qsc" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;line-height:1;padding:0">×</button>'
+  h += '</div>'
+  if (isIOS) {
+    h += '<a href="' + smbUrl + '" style="display:block;background:#7c6af7;color:#fff;text-align:center;padding:10px 0;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:14px">📂 Open in Files app</a>'
+  }
+  h += '<div style="margin-bottom:' + (isIOS ? '0' : '10px') + '">'
+  h += '<div style="color:#64748b;font-size:11px;margin-bottom:4px">SMB URL</div>'
+  h += '<div style="display:flex;gap:6px"><input id="_qsmb" readonly value="' + smbUrl + '" onclick="this.select()" style="flex:1;min-width:0;background:#0f172a;border:1px solid #334155;color:#93c5fd;padding:6px 8px;border-radius:6px;font-size:11px;font-family:monospace">'
+  h += '<button id="_qcs" style="background:#334155;border:none;color:#94a3b8;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap">Copy</button></div></div>'
+  if (!isIOS && !isAndroid) {
+    h += '<div><div style="color:#64748b;font-size:11px;margin-bottom:4px">Windows path</div>'
+    h += '<div style="display:flex;gap:6px"><input id="_qunc" readonly value="' + uncPath + '" onclick="this.select()" style="flex:1;min-width:0;background:#0f172a;border:1px solid #334155;color:#93c5fd;padding:6px 8px;border-radius:6px;font-size:11px;font-family:monospace">'
+    h += '<button id="_qcu" style="background:#334155;border:none;color:#94a3b8;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap">Copy</button></div></div>'
+  }
+  h += '</div>'
+  modal.innerHTML = h
+  document.body.appendChild(modal)
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove() })
+  document.getElementById('_qsc').addEventListener('click', function(){ modal.remove() })
+  document.getElementById('_qcs').addEventListener('click', function(){
+    navigator.clipboard.writeText(smbUrl).then(function(){
+      var b = document.getElementById('_qcs'); if (b){ b.textContent = 'Copied!'; setTimeout(function(){ b.textContent = 'Copy' }, 1500) }
+    }).catch(function(){ document.getElementById('_qsmb').select(); document.execCommand('copy') })
+  })
+  if (!isIOS && !isAndroid) {
+    document.getElementById('_qcu').addEventListener('click', function(){
+      navigator.clipboard.writeText(uncPath).then(function(){
+        var b = document.getElementById('_qcu'); if (b){ b.textContent = 'Copied!'; setTimeout(function(){ b.textContent = 'Copy' }, 1500) }
+      }).catch(function(){ document.getElementById('_qunc').select(); document.execCommand('copy') })
+    })
+  }
+}
+
+function showTab(name) {
+  const tabs = ['events','cameras','services','qnap']
+  tabs.forEach(t => {
+    document.getElementById('pane-' + t).style.display = name===t ? 'block' : 'none'
+    document.getElementById('tab-' + t).style.background = name===t ? '#7c6af7' : '#1e293b'
+    document.getElementById('tab-' + t).style.color = name===t ? '#fff' : '#94a3b8'
+  })
+  location.hash = name
+  if (name === 'cameras') { reloadSnapshots(); refreshMotionStates() }
+  if (name === 'services') { stopRefresh(); loadServices() }
+  else if (name === 'qnap') { stopRefresh(); loadQnap() }
+  else if (document.getElementById('autorefresh-cb').checked) startRefresh()
+}
+// Auto-refresh
+let refreshTimer = null
+function startRefresh() {
+  if (refreshTimer) return
+  refreshTimer = setTimeout(() => location.reload(), 60000)
+}
+function stopRefresh() {
+  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const tab = location.hash.replace('#','') || 'events'
+  if (['cameras','services','qnap'].includes(tab)) showTab(tab)
+  const cb = document.getElementById('autorefresh-cb')
+  const saved = sessionStorage.getItem('autorefresh')
+  if (saved === '0') { cb.checked = false } else { startRefresh() }
+  cb.addEventListener('change', () => {
+    sessionStorage.setItem('autorefresh', cb.checked ? '1' : '0')
+    cb.checked ? startRefresh() : stopRefresh()
+  })
+})
 function reloadSnapshots() {
   // Load snapshots one at a time with delay to avoid rate limiting
   const imgs = [...document.querySelectorAll('#pane-cameras img')]
@@ -1457,11 +1977,74 @@ function reloadSnapshots() {
       img.style.display = 'block'
       if (img.nextElementSibling) img.nextElementSibling.style.display = 'none'
       const newImg = new Image()
-      newImg.onload = () => { img.src = newImg.src }
+      newImg.onload = () => {
+        img.src = newImg.src
+        const snapId = img.getAttribute('data-snap-id')
+        if (snapId) {
+          const el = document.getElementById('snap-time-' + snapId)
+          if (el) el.textContent = '📸 ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true})
+        }
+      }
       newImg.onerror = () => { img.style.display = 'none'; if (img.nextElementSibling) img.nextElementSibling.style.display = 'block' }
       newImg.src = base + '?t=' + Date.now()
     }, i * 1500)  // 1.5 second delay between each camera
   })
+}
+const recentToggles = {}
+async function refreshMotionStates() {
+  try {
+    const states = await (await fetch('/api/camera-states')).json()
+    for (const [name, s] of Object.entries(states)) {
+      // Skip cameras toggled in the last 90s — Ring needs time to propagate
+      if (recentToggles[name] && Date.now() - recentToggles[name].at < 90000) continue
+      const btn = document.querySelector('button[data-cam="' + encodeURIComponent(name) + '"]')
+      if (!btn) continue
+      const on = s.motionEnabled
+      btn.textContent = on ? '🔴 Motion On' : '⚪ Motion Off'
+      btn.style.background    = on ? '#22c55e22' : '#f8717122'
+      btn.style.borderColor   = on ? '#22c55e'   : '#f87171'
+      btn.style.color         = on ? '#4ade80'   : '#f87171'
+      btn.title = (on ? 'Disable' : 'Enable') + ' motion detection'
+      btn.onclick = () => toggleMotion(btn, encodeURIComponent(name), !on)
+    }
+    // Re-sort grid: motion-on cards first
+    const grid = document.querySelector('#pane-cameras .camera-grid')
+    if (grid) {
+      const cards = [...grid.children]
+      cards.sort((a, b) => {
+        const aOff = a.querySelector('button') && a.querySelector('button').textContent.includes('Off') ? 1 : 0
+        const bOff = b.querySelector('button') && b.querySelector('button').textContent.includes('Off') ? 1 : 0
+        return aOff - bOff
+      })
+      cards.forEach(c => grid.appendChild(c))
+    }
+  } catch(e) { console.warn('Could not refresh motion states', e) }
+}
+async function toggleMotion(btn, camName, enable) {
+  btn.disabled = true
+  btn.textContent = '...'
+  try {
+    const r = await fetch('/camera-motion', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: decodeURIComponent(camName), enable })
+    })
+    const j = await r.json()
+    if (j.ok) {
+      recentToggles[decodeURIComponent(camName)] = { at: Date.now(), motionEnabled: enable }
+      btn.textContent = enable ? '🔴 Motion On' : '⚪ Motion Off'
+      btn.style.background = enable ? '#22c55e22' : '#f8717122'
+      btn.style.borderColor = enable ? '#22c55e' : '#f87171'
+      btn.style.color = enable ? '#4ade80' : '#f87171'
+      btn.title = (enable ? 'Disable' : 'Enable') + ' motion detection'
+      btn.onclick = () => toggleMotion(btn, camName, !enable)
+    } else {
+      btn.textContent = '⚠️ Error'
+    }
+  } catch(e) {
+    btn.textContent = '⚠️ Error'
+  }
+  btn.disabled = false
 }
 </script>
 
@@ -1910,6 +2493,373 @@ function startDashboard() {
       }
       return
     }
+    if (req.method === 'POST' && req.url === '/camera-motion') {
+      let body = ''
+      req.on('data', d => body += d)
+      req.on('end', async () => {
+        try {
+          const { name, enable } = JSON.parse(body)
+          const cameras = await ringApiInstance.getCameras()
+          const cam = cameras.find(c => c.name === name)
+          if (!cam) { res.writeHead(404); res.end(JSON.stringify({ok:false,error:'Camera not found'})); return }
+          try {
+            await cam.setSettings({ motion_detection_enabled: enable })
+          } catch(e1) {
+            console.log(`[camera-motion] setSettings failed (${e1.response?.status}), trying setDeviceSettings with nested motion_settings...`)
+            await cam.setDeviceSettings({ motion_settings: { motion_detection_enabled: enable } })
+          }
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ok:true}))
+        } catch(e) {
+          console.error(`[camera-motion] error for ${JSON.parse(body).name}:`, e.message, JSON.stringify(e.response ?? {}))
+          res.writeHead(500, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ok:false,error:e.message}))
+        }
+      })
+      return
+    }
+    if (req.method === 'GET' && req.url === '/api/camera-states') {
+      try {
+        const cameras = await ringApiInstance.getCameras()
+        const states = {}
+        await Promise.all(cameras.map(async cam => {
+          let motionEnabled = true
+          try {
+            await cam.getSnapshot()
+          } catch(e) {
+            if (e.message?.toLowerCase().includes('motion detection')) motionEnabled = false
+          }
+          states[cam.name] = { motionEnabled }
+        }))
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(states))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({}))
+      }
+      return
+    }
+    if (req.method === 'POST' && req.url === '/api/qnap/refresh') {
+      if (global._qnapCache) global._qnapCache.ts = 0
+      res.writeHead(200); res.end('ok')
+      return
+    }
+    if (req.method === 'GET' && req.url.startsWith('/api/qnap/open-share')) {
+      try {
+        const reqUrl2 = new URL(req.url, 'http://localhost')
+        const shareName = reqUrl2.searchParams.get('name') ?? ''
+        // Validate: only alphanumeric, spaces, hyphens, underscores, dots
+        if (!shareName || !/^[\w\s\-\.]+$/.test(shareName)) {
+          res.writeHead(400); res.end('invalid share name'); return
+        }
+        let qnapHost = '192.168.1.176'
+        try { qnapHost = JSON.parse(readFileSync('qnap_config.json', 'utf-8')).host ?? qnapHost } catch {}
+        // Open SMB share in Finder (runs on the Mac Mini)
+        exec(`open "smb://${qnapHost}/${encodeURIComponent(shareName)}"`)
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ ok: true, share: shareName }))
+      } catch(e) {
+        res.writeHead(500); res.end(e.message)
+      }
+      return
+    }
+    if (req.method === 'GET' && req.url === '/api/qnap') {
+      // Cache result for 5 minutes
+      const QNAP_CACHE_MS = 5 * 60 * 1000
+      if (!global._qnapCache) global._qnapCache = { ts: 0, data: null }
+      if (global._qnapCache.data && Date.now() - global._qnapCache.ts < QNAP_CACHE_MS) {
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(global._qnapCache.data))
+        return
+      }
+      try {
+        let qnapCfg = { host: '192.168.1.176', snmp_community: 'public', snmp_port: 161 }
+        try { qnapCfg = { ...qnapCfg, ...JSON.parse(readFileSync('qnap_config.json', 'utf-8')) } } catch {}
+
+        const snmp = await import('net-snmp')
+        const session = snmp.createSession(qnapCfg.host, qnapCfg.snmp_community ?? 'public', {
+          port: qnapCfg.snmp_port ?? 161, timeout: 5000, retries: 1, version: snmp.Version2c
+        })
+
+        function snmpGet(oids) {
+          return new Promise((resolve, reject) => {
+            session.get(oids, (err, varbinds) => {
+              if (err) return reject(err)
+              const result = {}
+              varbinds.forEach((v, i) => {
+                result[oids[i]] = snmp.isVarbindError(v) ? null : v.value?.toString() ?? null
+              })
+              resolve(result)
+            })
+          })
+        }
+
+        function snmpTable(oid) {
+          return new Promise((resolve, reject) => {
+            const rows = {}
+            session.subtree(oid, 20, (varbinds) => {
+              varbinds.forEach(v => {
+                if (snmp.isVarbindError(v)) return
+                const parts = v.oid.split('.')
+                const col = parts[parts.length - 2]
+                const row = parts[parts.length - 1]
+                if (!rows[row]) rows[row] = {}
+                rows[row][col] = v.value?.toString() ?? null
+              })
+            }, (err) => {
+              if (err && Object.keys(rows).length === 0) return reject(err)
+              resolve(Object.values(rows))
+            })
+          })
+        }
+
+        // QNAP NAS-MIB OIDs (enterprise 24681)
+        const SYS_OIDs = {
+          cpu:      '1.3.6.1.4.1.24681.1.2.1.0',
+          memUsed:  '1.3.6.1.4.1.24681.1.2.2.0',
+          memTotal: '1.3.6.1.4.1.24681.1.2.3.0',
+          hostname: '1.3.6.1.2.1.1.5.0',
+          uptime:   '1.3.6.1.2.1.1.3.0',
+          sysDesc:  '1.3.6.1.2.1.1.1.0',
+        }
+
+        let sysinfo = {}, volumes = [], disks = []
+
+        // System info
+        try {
+          const vals = await snmpGet(Object.values(SYS_OIDs))
+          const cpuRaw = vals[SYS_OIDs.cpu] ?? ''
+          const cpuPct = parseInt(cpuRaw.replace('%','')) || null
+          // QNAP: .2.0 = total, .3.0 = free (not used); derive used from total-free
+          const memA = parseInt(vals[SYS_OIDs.memUsed])  || null
+          const memB = parseInt(vals[SYS_OIDs.memTotal]) || null
+          // Whichever is larger is total
+          const memTotal = (memA && memB) ? Math.max(memA, memB) : (memA ?? memB)
+          const memOther = (memA && memB) ? Math.min(memA, memB) : null
+          // If memOther looks like free space (smaller), used = total - free
+          const memUsed  = (memTotal && memOther) ? memTotal - memOther : memTotal
+          const uptimeTicks = parseInt(vals[SYS_OIDs.uptime]) || 0
+          const uptimeSecs  = Math.floor(uptimeTicks / 100)
+          const uptimeStr   = uptimeSecs > 86400
+            ? `${Math.floor(uptimeSecs/86400)}d ${Math.floor((uptimeSecs%86400)/3600)}h`
+            : `${Math.floor(uptimeSecs/3600)}h ${Math.floor((uptimeSecs%3600)/60)}m`
+          const sysDesc = vals[SYS_OIDs.sysDesc] ?? ''
+          // sysDesc format: "Linux TS-X53E 5.2.9.3499" → model=TS-X53E, firmware=5.2.9.3499
+          const descParts = sysDesc.split(' ')
+          const fwMatch = sysDesc.match(/(\d+\.\d+\.\d+[\.\d]*)/)
+          sysinfo = {
+            hostname:  vals[SYS_OIDs.hostname],
+            model:     descParts.slice(0,3).join(' ') || null,
+            firmware:  fwMatch?.[1] ?? null,
+            uptime:    uptimeStr,
+            cpu_usage: cpuPct,
+            mem_used:  memUsed,
+            mem_total: memTotal,
+          }
+        } catch(e) { sysinfo = { error: 'SNMP system info failed: ' + e.message } }
+
+        // Volumes (QNAP-MIB volumeTable: 1.3.6.1.4.1.24681.1.2.17)
+        // Confirmed cols: 1=index, 2=label, 3=fsType, 4=totalSize, 5=freeSize, 6=status
+        try {
+          const rawVolumes = await snmpTable('1.3.6.1.4.1.24681.1.2.17')
+          function parseSize(str) {
+            // Parse "11.41 TB", "8.62 TB", "500 GB" etc → GB number
+            if (!str) return null
+            const m = str.match(/^([\d.]+)\s*(TB|GB|MB)/i)
+            if (!m) return null
+            const n = parseFloat(m[1])
+            const u = m[2].toUpperCase()
+            return u === 'TB' ? n * 1024 : u === 'MB' ? n / 1024 : n
+          }
+          function fmtSize(str) {
+            // Return size string as-is if it has a unit, else format from GB
+            if (!str) return null
+            if (/TB|GB|MB/i.test(str)) return str.trim()
+            const n = parseFloat(str)
+            return isNaN(n) ? null : n >= 1024 ? (n/1024).toFixed(2)+' TB' : n.toFixed(2)+' GB'
+          }
+          volumes = rawVolumes.map(r => {
+            const totalGB = parseSize(r['4'])
+            const freeGB  = parseSize(r['5'])
+            const usedGB  = (totalGB != null && freeGB != null) ? totalGB - freeGB : null
+            const pct     = (totalGB && usedGB != null) ? Math.round((usedGB / totalGB) * 100) : null
+            return {
+              label:    r['2'] ?? '?',
+              status:   r['6'] ?? '?',
+              fsType:   r['3'] ?? null,
+              total:    fmtSize(r['4']),
+              free:     fmtSize(r['5']),
+              used:     usedGB != null ? (usedGB >= 1024 ? (usedGB/1024).toFixed(2)+' TB' : usedGB.toFixed(2)+' GB') : null,
+              used_pct: pct
+            }
+          })
+        } catch(e) { volumes = [{ label: 'Error', status: e.message }] }
+
+        // Disks (QNAP-MIB diskTable: 1.3.6.1.4.1.24681.1.2.11)
+        try {
+          const rows = await snmpTable('1.3.6.1.4.1.24681.1.2.11')
+          disks = rows.map(r => {
+            // Actual QNAP cols: 1=index, 2=slot(HDD1..), 3=temp("45 C/113 F"), 4=?, 5=model, 6=capacity, 7=health/smart
+            const tempStr = r['3'] ?? ''
+            const tempMatchC = tempStr.match(/^(\d+)\s*C/)
+            const tempMatchF = tempStr.match(/(\d+)\s*F/)
+            const temp = tempMatchF ? parseInt(tempMatchF[1]) : (tempMatchC ? Math.round(parseInt(tempMatchC[1]) * 9/5 + 32) : null)
+            const tempUnit = 'F'
+            const capacity = r['6'] ?? null
+            const health = r['7'] ?? null
+            const model = r['5'] ?? null
+            const isEmpty = !model || model === '--' || (capacity && parseFloat(capacity) < 0)
+            return {
+              slot: r['2'] ?? ('Drive ' + (r['1'] ?? '?')),
+              model: isEmpty ? null : model,
+              capacity: isEmpty ? null : capacity,
+              temp: isEmpty ? null : temp,
+              tempUnit: 'F',
+              health: isEmpty ? 'Empty' : (health && health !== '--' ? health : 'Good'),
+              empty: isEmpty
+            }
+          }).filter(d => d.slot)
+        } catch(e) { disks = [] }
+
+        session.close()
+
+        // Apps via SSH (QNAP CGI auth disabled in QTS 5 passwordless mode)
+        let apps = []
+        let shares = []
+        try {
+          function xmlVal(xml, tag) {
+            const m = xml.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([^\\]<]+?)(?:\\]\\]>)?<\\/${tag}>`))
+            return m?.[1]?.trim() ?? null
+          }
+
+          // Get installed apps + share list via SSH
+          if (qnapCfg.ssh_user && qnapCfg.ssh_pass && qnapCfg.ssh_pass !== 'YOUR_PASSWORD_HERE') {
+            try {
+              const { Client } = await import('ssh2')
+              const sshResult = await new Promise((resolve) => {
+                const conn = new Client()
+                let output = ''
+                conn.on('ready', () => {
+                  // Combined command: qpkg list + share symlinks separated by marker
+                  const cmd = "ls /share/CACHEDEV1_DATA/.qpkg/ 2>/dev/null && echo '===SHARES===' && find /share -maxdepth 1 -type l -exec basename {} \\; 2>/dev/null | sort"
+                  conn.exec(cmd, (err, stream) => {
+                    if (err) { conn.end(); resolve({ apps: [], shares: [] }); return }
+                    stream.on('data', d => output += d)
+                    stream.on('close', () => {
+                      conn.end()
+                      const [appsPart, sharesPart] = output.split('===SHARES===')
+                      const pkgs = (appsPart ?? '').trim().split('\n')
+                        .map(n => n.trim().replace(/\/$/, ''))
+                        .filter(n => n && !n.startsWith('.'))
+                        .map(name => ({ name, status: 'enabled', version: '' }))
+                      const shareList = (sharesPart ?? '').trim().split('\n')
+                        .map(n => n.trim())
+                        .filter(n => n && !n.startsWith('.'))
+                      resolve({ apps: pkgs, shares: shareList })
+                    })
+                  })
+                })
+                conn.on('error', () => resolve({ apps: [], shares: [] }))
+                conn.connect({ host: qnapCfg.host, port: qnapCfg.ssh_port ?? 22, username: qnapCfg.ssh_user, password: qnapCfg.ssh_pass, readyTimeout: 5000 })
+              })
+              apps = sshResult.apps
+              shares = sshResult.shares
+            } catch(e) { console.log('[QNAP] SSH error:', e.message) }
+          }
+        } catch(e) { console.log('[QNAP] apps fetch error:', e.message) }
+
+        const qnapResult = { host: qnapCfg.host, source: 'snmp', sysinfo, volumes, disks, apps, shares }
+        global._qnapCache = { ts: Date.now(), data: qnapResult }
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(qnapResult))
+      } catch(e) {
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.method === 'GET' && req.url === '/api/services') {
+      try {
+        // Known labels (port → description)
+        const knownLabels = {
+          '21': 'FTP', '22': 'SSH', '23': 'Telnet', '25': 'SMTP', '53': 'DNS',
+          '80': 'HTTP', '110': 'POP3', '143': 'IMAP', '443': 'HTTPS', '445': 'SMB',
+          '548': 'AFP (Apple File Sharing)', '631': 'CUPS (Printing)',
+          '3000': 'Node dev server', '3306': 'MySQL', '5432': 'PostgreSQL',
+          '5555': 'Hue webhook listener', '5558': 'Home Monitor dashboard',
+          '5559': 'Home Monitor control', '5560': 'Speed Monitor dashboard',
+          '7000': 'AirPlay', '7100': 'Font Service', '8080': 'HTTP alt',
+          '8888': 'Jupyter Notebook',
+          // macOS system services
+          '49152': 'macOS dynamic port', '5060': 'CommCenter (iPhone Mirroring/Continuity)',
+          '49162': 'rapportd (Handoff/Universal Clipboard)',
+          '57621': 'Spotify local discovery', '7768': 'Spotify local web helper',
+          '62718': 'Spotify',
+          // App ports
+          '57889': 'Parallels Desktop',
+        }
+        // Process name → description fallback
+        const procLabels = {
+          'rapportd': 'Apple Rapport (Handoff/Universal Clipboard)',
+          'CommCente': 'CommCenter (iPhone Mirroring/Continuity)',
+          'Parallels': 'Parallels Desktop',
+          'Spotify': 'Spotify',
+        }
+        // Load custom labels from service_labels.json if present
+        let customLabels = {}
+        try { customLabels = JSON.parse(readFileSync('service_labels.json', 'utf-8')) } catch {}
+        const labels = { ...knownLabels, ...customLabels }
+
+        const { stdout } = await execAsync('lsof -iTCP -sTCP:LISTEN -P -n', { timeout: 5000 })
+        const ports = []
+        const seen = new Set()
+        for (const line of stdout.split('\n').slice(1)) {
+          const parts = line.trim().split(/\s+/)
+          if (parts.length < 9) continue
+          const proc = parts[0], pid = parts[1], addr = parts[8] ?? ''
+          const portMatch = addr.match(/:(\d+)$/)
+          if (!portMatch) continue
+          const port = parseInt(portMatch[1])
+          const key = `${port}:${pid}`
+          if (seen.has(key)) continue
+          seen.add(key)
+          const description = labels[String(port)] ?? procLabels[proc] ?? ''
+          ports.push({ port, process: proc, pid, description })
+        }
+        ports.sort((a, b) => a.port - b.port)
+
+        // Launch Agents
+        const launchAgents = []
+        try {
+          const laDir = `/Users/${process.env.USER}/Library/LaunchAgents`
+          const { stdout: lsOut } = await execAsync(`ls "${laDir}"`, { timeout: 3000 })
+          const { stdout: lcList } = await execAsync('launchctl list', { timeout: 3000 })
+          const runningLabels = new Set(lcList.split('\n').map(l => l.split('\t')[2]).filter(Boolean))
+
+          for (const file of lsOut.split('\n').filter(f => f.endsWith('.plist'))) {
+            try {
+              const { stdout: plistOut } = await execAsync(`plutil -convert json -o - "${laDir}/${file}"`, { timeout: 3000 })
+              const plist = JSON.parse(plistOut)
+              const label = plist.Label ?? file.replace('.plist','')
+              const prog = plist.ProgramArguments?.[0] ?? plist.Program ?? ''
+              const args = (plist.ProgramArguments ?? []).slice(1).join(' ')
+              const script = args ? `${prog} ${args}` : prog
+              const running = runningLabels.has(label)
+              launchAgents.push({ label, script: script.replace(/\/Users\/[^/]+/g, '~'), running })
+            } catch { /* skip unparseable */ }
+          }
+        } catch(e) {
+          launchAgents.push({ label: 'Error reading launch agents', script: e.message, running: false })
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ports, launchAgents }))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ ports: [], error: e.message }))
+      }
+      return
+    }
+
     if (req.url !== '/' && req.url !== '/dashboard') { res.writeHead(404); res.end(); return }
     try {
       const history = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
@@ -2512,6 +3462,99 @@ function startControlServer() {
   server.listen(CONTROL_PORT, () => console.log(`Control panel at http://192.168.1.190:${CONTROL_PORT}`))
 }
 
+async function subscribeToRingDeviceChanges(ringApi) {
+  // Batch Ring WS events that fire within 2s of each other into one alert
+  let wsBatch = []
+  let wsBatchTimer = null
+  function flushWsBatch() {
+    wsBatchTimer = null
+    if (wsBatch.length === 0) return
+    const batch = wsBatch.splice(0)
+
+    // Deduplicate: if a light group and its member bulb both changed, keep only the group
+    const groupNames = batch.filter(i => i._isGroup).map(i => i.name.toLowerCase())
+    const deduped = batch.filter(i => {
+      if (i._isGroup) return true
+      // suppress member bulb if its name contains or starts with any group name
+      return !groupNames.some(g => i.name.toLowerCase().includes(g) || i.name.toLowerCase().startsWith(g))
+    })
+
+    // Infer trigger: group device OR multiple simultaneous devices = Alexa/app/routine
+    const hasGroup = batch.some(i => i._isGroup)
+    const trigger = (hasGroup || batch.length > 1) ? ' (via Alexa/app/routine)' : ''
+
+    const allEvents = []
+    for (const item of deduped) {
+      const events = updateTimeline([item])
+      allEvents.push(...events)
+    }
+    if (allEvents.length > 0) {
+      // Tag events with trigger note
+      for (const e of allEvents) { if (trigger) e._trigger = trigger }
+      sendEventAlert(allEvents).catch(e => console.error(`[Ring WS] alert error: ${e.message}`))
+    }
+  }
+
+  try {
+    const locations = await ringApi.getLocations()
+    for (const location of locations) {
+      let devices = []
+      try { devices = await location.getDevices() } catch { continue }
+
+      for (const device of devices) {
+        const baseData = device.data
+        const type = baseData.deviceType ?? ''
+        const isGroup = type.includes('group')
+        let category = null
+        if (type.includes('light') || type.includes('beam')) category = 'Light'
+        else if (type.includes('contact')) category = 'Contact'
+        else if (type.includes('motion')) category = 'Motion'
+        if (!category) continue
+        if (!device.onData?.subscribe) continue
+
+        let lastState = null
+        device.onData.subscribe(newData => {
+          try {
+            const name = newData.name ?? baseData.name ?? type
+            let state = null
+            if (category === 'Light') {
+              state = detectPowerState(newData)
+            } else {
+              const open = (() => {
+                const checks = [newData.faulted, newData.open, newData.opened, newData.isOpen, newData.motionDetected, newData.motion, newData.status, newData.state]
+                for (const v of checks) {
+                  if (v === true) return true
+                  if (v === false) return false
+                  if (typeof v === 'string') {
+                    const n = v.toLowerCase()
+                    if (['open','opened','active','motion','detected','faulted'].includes(n)) return true
+                    if (['closed','clear','inactive','idle','ok'].includes(n)) return false
+                  }
+                }
+                return null
+              })()
+              if (open === null) return
+              state = open ? 'active' : 'clear'
+            }
+            if (!state || state === lastState) return
+            lastState = state
+            const key = `ring:${category.toLowerCase()}:${name.toLowerCase()}`
+            console.log(`[Ring WS] ${name} → ${state}`)
+            wsBatch.push({ key, source: 'Ring', category, name, state, _isGroup: isGroup })
+            if (wsBatchTimer) clearTimeout(wsBatchTimer)
+            wsBatchTimer = setTimeout(flushWsBatch, 2000)
+          } catch(e) {
+            console.error(`[Ring WS] error processing ${baseData.name}: ${e.message}`)
+          }
+        })
+      }
+    }
+    console.log('[Ring WS] subscribed to device state changes')
+  } catch(e) {
+    console.error(`[Ring WS] subscription setup failed: ${e.message}`)
+  }
+}
+
 async function main() {
   console.log(`Home Event Watcher v${WATCHER_VERSION}`)
   console.log(`Polling every ${INTERVAL_SECONDS}s; cause window ${CAUSE_WINDOW_SECONDS}s.`)
@@ -2527,6 +3570,7 @@ async function main() {
   if (!RUN_ONCE) startHueWebhookListener()
   if (!RUN_ONCE) startDashboard()
   if (!RUN_ONCE) startControlServer()
+  if (!RUN_ONCE) subscribeToRingDeviceChanges(ringApi)
 
   do {
     try {
