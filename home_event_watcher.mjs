@@ -9,7 +9,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.08.02.1'
+const WATCHER_VERSION = '2026.08.02.11'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1744,6 +1744,11 @@ async function buildDashboard(history, devices) {
     <div style="color:#64748b;font-size:12px">Loading...</div>
   </div>
 
+  <h3 style="margin-top:24px;color:#94a3b8">⏱ Time Machine Backups</h3>
+  <div id="qnap-tm" style="margin-bottom:12px">
+    <div style="color:#64748b;font-size:12px">Loading...</div>
+  </div>
+
   <p style="color:#64748b;font-size:11px;margin-top:12px">Connects to QNAP at 192.168.1.176 via SNMP · Refreshes on tab switch · Click a share to open in Finder</p>
 </div>
 
@@ -1977,8 +1982,78 @@ async function loadQnap() {
       document.getElementById('qnap-shares').innerHTML =
         '<div style="color:#64748b;font-size:12px">No shares found (requires SSH)</div>'
     }
+
+    // Time Machine — merge QNAP-side sparsebundles with Mac Mini tmutil snapshot list
+    loadTMBackups(data.tmBundles ?? [])
+
   } catch(e) {
     document.getElementById('qnap-status').innerHTML = '<span style="color:#f87171">Error: ' + e.message + '</span>'
+  }
+}
+
+async function loadTMBackups(qnapBundles) {
+  var el = document.getElementById('qnap-tm')
+  try {
+    var tmData = { backups: [] }
+    try { tmData = await (await fetch('/api/tm-backups')).json() } catch(e) {}
+    var snapshots = tmData.backups ?? []
+
+    var fmtDate = function(iso) {
+      if (!iso) return '—'
+      var d = new Date(iso)
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+    }
+
+    // Add any QNAP-bundle machines not already in tmutil output (e.g. MBP)
+    var knownMachines = {}
+    snapshots.forEach(function(s) { knownMachines[s.machine.toLowerCase()] = true })
+    var extraRows = []
+    qnapBundles.forEach(function(b) {
+      var key = b.machine.toLowerCase()
+      var matched = Object.keys(knownMachines).some(function(k) { return k.indexOf(key) > -1 || key.indexOf(k) > -1 })
+      if (!matched) extraRows.push({ machine: b.machine, date: b.lastBackup, type: '—', note: 'QNAP bundle only' })
+    })
+
+    if (!snapshots.length && !extraRows.length) {
+      el.innerHTML = '<div style="color:#64748b;font-size:12px">No Time Machine backups found</div>'; return
+    }
+
+    // Count per machine for header summary
+    var counts = {}
+    snapshots.forEach(function(s) { counts[s.machine] = (counts[s.machine] || 0) + 1 })
+    var summary = Object.entries(counts).map(function(e) {
+      return '<span style="color:#94a3b8">💻 ' + e[0] + '</span> <span style="color:#64748b">(' + e[1] + ' snapshots)</span>'
+    }).join('  ·  ')
+    if (extraRows.length) {
+      extraRows.forEach(function(r) { summary += '  ·  <span style="color:#94a3b8">💻 ' + r.machine + '</span> <span style="color:#64748b">(QNAP bundle)</span>' })
+    }
+
+    var html = '<div style="font-size:11px;margin-bottom:8px">' + summary + '</div>' +
+      '<div style="max-height:320px;overflow-y:auto">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      '<tr><th style="text-align:left;color:#475569;padding:3px 8px 3px 0;border-bottom:1px solid #334155">Machine</th>' +
+           '<th style="text-align:left;color:#475569;padding:3px 8px;border-bottom:1px solid #334155">Date</th>' +
+           '<th style="text-align:left;color:#475569;padding:3px 0;border-bottom:1px solid #334155">Type</th></tr>'
+
+    snapshots.forEach(function(s) {
+      var typeColor = s.type === 'Full' ? '#fbbf24' : '#94a3b8'
+      html += '<tr>' +
+        '<td style="color:#e2e8f0;padding:3px 8px 3px 0;border-bottom:1px solid #1e293b">' + s.machine + '</td>' +
+        '<td style="color:#94a3b8;padding:3px 8px;border-bottom:1px solid #1e293b">' + fmtDate(s.date) + '</td>' +
+        '<td style="color:' + typeColor + ';padding:3px 0;border-bottom:1px solid #1e293b">' + s.type + '</td>' +
+      '</tr>'
+    })
+    extraRows.forEach(function(r) {
+      html += '<tr>' +
+        '<td style="color:#e2e8f0;padding:3px 8px 3px 0">' + r.machine + '</td>' +
+        '<td style="color:#94a3b8;padding:3px 8px">' + fmtDate(r.date) + '</td>' +
+        '<td style="color:#64748b;padding:3px 0">' + r.note + '</td>' +
+      '</tr>'
+    })
+    html += '</table></div>'
+    el.innerHTML = html
+  } catch(e) {
+    el.innerHTML = '<span style="color:#f87171;font-size:12px">TM error: ' + e.message + '</span>'
   }
 }
 
@@ -2833,6 +2908,7 @@ function startDashboard() {
         // Apps via SSH (QNAP CGI auth disabled in QTS 5 passwordless mode)
         let apps = []
         let shares = []
+        let tmBundles = []
         try {
           function xmlVal(xml, tag) {
             const m = xml.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([^\\]<]+?)(?:\\]\\]>)?<\\/${tag}>`))
@@ -2848,34 +2924,45 @@ function startDashboard() {
                 let output = ''
                 conn.on('ready', () => {
                   // Combined command: qpkg list + share symlinks separated by marker
-                  const cmd = "ls /share/CACHEDEV1_DATA/.qpkg/ 2>/dev/null && echo '===SHARES===' && find /share -maxdepth 1 -type l -exec basename {} \\; 2>/dev/null | sort"
+                  const cmd = "ls /share/CACHEDEV1_DATA/.qpkg/ 2>/dev/null && echo '===SHARES===' && find /share -maxdepth 1 -type l -exec basename {} \\; 2>/dev/null | sort && echo '===TM_BUNDLES===' && find /share -maxdepth 4 -name '*.sparsebundle' 2>/dev/null | while IFS= read -r f; do mod=$(stat -c '%Y' \"$f\" 2>/dev/null); echo \"${f}|${mod}\"; done"
                   conn.exec(cmd, (err, stream) => {
-                    if (err) { conn.end(); resolve({ apps: [], shares: [] }); return }
+                    if (err) { conn.end(); resolve({ apps: [], shares: [], tmBundles: [] }); return }
                     stream.on('data', d => output += d)
                     stream.on('close', () => {
                       conn.end()
-                      const [appsPart, sharesPart] = output.split('===SHARES===')
-                      const pkgs = (appsPart ?? '').trim().split('\n')
+                      const parts = output.split(/===SHARES===|===TM_BUNDLES===/)
+                      const appsPart   = parts[0] ?? ''
+                      const sharesPart = parts[1] ?? ''
+                      const tmPart     = parts[2] ?? ''
+                      const pkgs = appsPart.trim().split('\n')
                         .map(n => n.trim().replace(/\/$/, ''))
                         .filter(n => n && !n.startsWith('.'))
                         .map(name => ({ name, status: 'enabled', version: '' }))
-                      const shareList = (sharesPart ?? '').trim().split('\n')
+                      const shareList = sharesPart.trim().split('\n')
                         .map(n => n.trim())
                         .filter(n => n && !n.startsWith('.'))
-                      resolve({ apps: pkgs, shares: shareList })
+                      const tmBundles = tmPart.trim().split('\n').filter(Boolean).map(line => {
+                        const pipeIdx = line.lastIndexOf('|')
+                        const path    = pipeIdx > -1 ? line.slice(0, pipeIdx) : line
+                        const epoch   = pipeIdx > -1 ? parseInt(line.slice(pipeIdx + 1)) || 0 : 0
+                        const machine = path.split('/').pop().replace(/\.sparsebundle$/, '')
+                        return { machine, lastBackup: epoch ? new Date(epoch * 1000).toISOString() : null, path }
+                      }).filter(b => b.machine)
+                      resolve({ apps: pkgs, shares: shareList, tmBundles })
                     })
                   })
                 })
-                conn.on('error', () => resolve({ apps: [], shares: [] }))
+                conn.on('error', () => resolve({ apps: [], shares: [], tmBundles: [] }))
                 conn.connect({ host: qnapCfg.host, port: qnapCfg.ssh_port ?? 22, username: qnapCfg.ssh_user, password: qnapCfg.ssh_pass, readyTimeout: 5000 })
               })
               apps = sshResult.apps
-              shares = sshResult.shares
+              shares    = sshResult.shares
+              tmBundles = sshResult.tmBundles ?? []
             } catch(e) { console.log('[QNAP] SSH error:', e.message) }
           }
         } catch(e) { console.log('[QNAP] apps fetch error:', e.message) }
 
-        const qnapResult = { host: qnapCfg.host, source: 'snmp', sysinfo, volumes, disks, apps, shares }
+        const qnapResult = { host: qnapCfg.host, source: 'snmp', sysinfo, volumes, disks, apps, shares, tmBundles }
         global._qnapCache = { ts: Date.now(), data: qnapResult }
         res.writeHead(200, {'Content-Type':'application/json'})
         res.end(JSON.stringify(qnapResult))
@@ -2897,6 +2984,51 @@ function startDashboard() {
       }
       return
     }
+    if (req.method === 'GET' && req.url === '/api/tm-backups') {
+      try {
+        let backups = []
+        let debug = {}
+        try {
+          const { stdout: nameOut } = await execAsync('scutil --get ComputerName 2>/dev/null').catch(() => ({ stdout: '' }))
+          const machine = nameOut.trim() || 'This Mac'
+
+          // Requires Full Disk Access granted to the node binary in
+          // System Settings → Privacy & Security → Full Disk Access
+          let lines = []
+          try {
+            const { stdout: listOut } = await execAsync('tmutil listbackups 2>/dev/null')
+            lines = listOut.trim().split('\n').filter(Boolean)
+          } catch(e) { debug.error = 'tmutil failed — grant Full Disk Access to node in System Settings' }
+
+          // APFS TM format: /Volumes/.timemachine/<UUID>/<YYYY-MM-DD-HHMMSS>.backup[/...]
+          // Legacy format:  .../Backups.backupdb/<Machine>/<YYYY-MM-DD-HHMMSS>
+          const parsed = lines.map((path, idx) => {
+            let raw = null
+            let machineName = machine
+            const apfs = path.match(/(\d{4}-\d{2}-\d{2}-\d{6})\.backup/)
+            if (apfs) {
+              raw = apfs[1]
+            } else {
+              const legacy = path.match(/Backups\.backupdb\/([^/]+)\/(\d{4}-\d{2}-\d{2}-\d{6})/)
+              if (legacy) { machineName = legacy[1]; raw = legacy[2] }
+            }
+            if (!raw) return null
+            // YYYY-MM-DD-HHMMSS → YYYY-MM-DDTHH:MM:SS
+            const iso = raw.replace(/(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})(\d{2})/, '$1T$2:$3:$4')
+            return { machine: machineName, date: iso, type: idx === 0 ? 'Full' : 'Incremental', path }
+          }).filter(Boolean)
+          // Most recent first
+          backups = parsed.reverse()
+        } catch(e) { backups = [] }
+        const tmJson = JSON.stringify({ backups, debug })
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(tmJson)
+      } catch(e) {
+        if (!res.headersSent) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })) }
+      }
+      return
+    }
+
     if (req.method === 'GET' && req.url === '/api/mac-stats') {
       try {
         const os = await import('os')
