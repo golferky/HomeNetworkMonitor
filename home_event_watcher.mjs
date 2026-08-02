@@ -9,7 +9,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.08.01.1'
+const WATCHER_VERSION = '2026.08.01.4'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1619,7 +1619,7 @@ async function buildDashboard(history, devices) {
 <div style="display:flex;gap:4px;margin-bottom:16px">
   <button onclick="showTab('events')" id="tab-events" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#7c6af7;color:#fff;font-weight:700;cursor:pointer;font-size:12px">Events</button>
   <button onclick="showTab('cameras')" id="tab-cameras" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">📷 Ring Cameras</button>
-  <button onclick="showTab('services')" id="tab-services" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">🖥️ Mac Mini Services</button>
+  <button onclick="showTab('services')" id="tab-services" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">🖥️ Mac Mini</button>
   <button onclick="showTab('qnap')" id="tab-qnap" style="padding:6px 14px;border:none;border-radius:6px 6px 0 0;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:12px">🗄️ QNAP</button>
 </div>
 <div id="pane-events">
@@ -1665,6 +1665,28 @@ async function buildDashboard(history, devices) {
 </div>
 
 <div id="pane-services" style="display:none">
+  <h2 style="margin-bottom:12px">Mac Mini — System Overview</h2>
+  <div id="mac-gauges" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px">
+    <div style="flex:1;min-width:200px">
+      <h3 style="margin:0 0 8px;color:#94a3b8">CPU &amp; Memory</h3>
+      <div id="mac-cpu-mem" style="padding:8px 0"><span style="color:#64748b;font-size:12px">Loading…</span></div>
+    </div>
+    <div style="flex:1;min-width:200px">
+      <h3 style="margin:0 0 8px;color:#94a3b8">Storage</h3>
+      <div id="mac-disk" style="padding:8px 0"><span style="color:#64748b;font-size:12px">Loading…</span></div>
+    </div>
+    <div style="flex:1;min-width:200px">
+      <h3 style="margin:0 0 8px;color:#94a3b8">System Info</h3>
+      <div id="mac-sysinfo" style="padding:8px 0"><span style="color:#64748b;font-size:12px">Loading…</span></div>
+    </div>
+  </div>
+
+  <h3 style="color:#94a3b8;margin-bottom:8px">Top Memory Hogs</h3>
+  <table id="mac-procs-table" style="margin-bottom:24px">
+    <tr><th>PID</th><th>Process</th><th>Mem %</th><th>RSS</th><th>CPU %</th></tr>
+    <tr><td colspan="5" style="color:#64748b">Loading...</td></tr>
+  </table>
+
   <h2>Running Services &amp; Ports</h2>
   <table id="services-table">
     <tr><th>Port</th><th>Process</th><th>PID</th><th>Description</th></tr>
@@ -1738,7 +1760,82 @@ const SERVICE_LABELS = {
   '8080': 'HTTP alt',
 }
 
+function fmtBytes(b) {
+  if (b >= 1073741824) return (b/1073741824).toFixed(1) + ' GB'
+  if (b >= 1048576)    return (b/1048576).toFixed(0) + ' MB'
+  return b + ' B'
+}
+function macGauge(label, pct, val, color) {
+  var c = Math.min(Math.max(pct||0,0),100)
+  var gc = c > 85 ? '#f87171' : c > 65 ? '#fbbf24' : color
+  return '<div style="margin-bottom:12px">' +
+    '<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:3px"><span>' + label + '</span><span style="color:#e2e8f0;font-weight:700">' + val + '</span></div>' +
+    '<div style="background:#1e293b;border-radius:4px;height:10px;overflow:hidden"><div style="background:' + gc + ';width:' + c + '%;height:100%;border-radius:4px;transition:width 0.4s"></div></div>' +
+    '</div>'
+}
+async function loadMacStats() {
+  try {
+    var d = await (await fetch('/api/mac-stats')).json()
+    if (d.error) { document.getElementById('mac-cpu-mem').innerHTML = '<span style="color:#f87171">' + d.error + '</span>'; return }
+
+    var cpuLabel = d.cpu_pct + '% (load ' + (d.load_avg?.[0] ?? '?') + ' / ' + d.cpu_count + ' cores)'
+    var memUsedGB  = (d.mem_used  / 1073741824).toFixed(1)
+    var memTotalGB = (d.mem_total / 1073741824).toFixed(1)
+    var memLabel = memUsedGB + ' GB / ' + memTotalGB + ' GB'
+    document.getElementById('mac-cpu-mem').innerHTML =
+      macGauge('CPU', d.cpu_pct, cpuLabel, '#7c6af7') +
+      macGauge('Memory', d.mem_pct, memLabel, '#38bdf8')
+
+    var diskHtml = ''
+    if (d.disks && d.disks.length) {
+      d.disks.forEach(function(dk) {
+        var dkUsedGB  = (dk.used  / 1073741824).toFixed(1)
+        var dkTotalGB = (dk.total / 1073741824).toFixed(1)
+        diskHtml += macGauge('Startup Disk', dk.pct, dkUsedGB + ' GB / ' + dkTotalGB + ' GB', '#4ade80')
+      })
+    } else { diskHtml = '<span style="color:#64748b;font-size:12px">Unavailable</span>' }
+    document.getElementById('mac-disk').innerHTML = diskHtml
+
+    var info = '<div style="font-size:12px;line-height:2">' +
+      '<div><span style="color:#64748b">Host: </span><span style="color:#e2e8f0">' + (d.hostname||'—') + '</span></div>' +
+      '<div><span style="color:#64748b">Uptime: </span><span style="color:#e2e8f0">' + (d.uptime||'—') + '</span></div>' +
+      '<div><span style="color:#64748b">CPU: </span><span style="color:#e2e8f0;font-size:11px">' + (d.cpu_model||'—') + '</span></div>' +
+      '</div>'
+    document.getElementById('mac-sysinfo').innerHTML = info
+
+    var procs = d.top_procs ?? []
+    var procRows = procs.map(function(p) {
+      var memPct = parseFloat(p.mem_pct)
+      var memColor = memPct > 10 ? '#f87171' : memPct > 5 ? '#fbbf24' : '#e2e8f0'
+      var rssGB = p.rss_kb > 1048576 ? (p.rss_kb/1048576).toFixed(1)+' GB' : Math.round(p.rss_kb/1024)+' MB'
+      return '<tr>' +
+        '<td style="color:#64748b;font-size:11px">' + p.pid + '</td>' +
+        '<td style="color:#e2e8f0">' + p.name + '</td>' +
+        '<td style="color:' + memColor + ';font-weight:700">' + p.mem_pct + '%</td>' +
+        '<td style="color:#94a3b8">' + rssGB + '</td>' +
+        '<td style="color:#64748b">' + p.cpu_pct + '%</td>' +
+        '<td>' + (/procs$/.test(String(p.pid)) ? '' : '<button class="kill-btn" onclick="killProc(' + p.pid + ',this)" style="background:#7f1d1d;border:1px solid #f87171;color:#f87171;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:10px">Kill</button>') + '</td>' +
+      '</tr>'
+    }).join('')
+    document.getElementById('mac-procs-table').innerHTML =
+      '<tr><th>PID</th><th>Process</th><th>Mem %</th><th>RSS</th><th>CPU %</th><th></th></tr>' +
+      (procRows || '<tr><td colspan="6" style="color:#64748b">No data</td></tr>')
+  } catch(e) {
+    document.getElementById('mac-cpu-mem').innerHTML = '<span style="color:#f87171">Error: ' + e.message + '</span>'
+  }
+}
+async function killProc(pid, btn) {
+  if (!confirm('Kill PID ' + pid + '?')) return
+  btn.disabled = true; btn.textContent = '...'
+  try {
+    var r = await fetch('/api/mac-kill?pid=' + pid, { method: 'POST' })
+    var j = await r.json()
+    if (j.ok) { btn.textContent = 'Killed'; btn.style.color = '#4ade80'; setTimeout(loadMacStats, 1500) }
+    else { btn.textContent = 'Error'; btn.disabled = false }
+  } catch(e) { btn.textContent = 'Error'; btn.disabled = false }
+}
 async function loadServices() {
+  loadMacStats()
   try {
     const data = await (await fetch('/api/services')).json()
     const rows = data.ports.map(p => {
@@ -2778,6 +2875,103 @@ function startDashboard() {
       return
     }
 
+    if (req.method === 'POST' && req.url.startsWith('/api/mac-kill')) {
+      try {
+        const pid = parseInt(new URL(req.url, 'http://localhost').searchParams.get('pid') ?? '')
+        if (!pid || pid < 2) { res.writeHead(400); res.end(JSON.stringify({ ok: false, error: 'invalid pid' })); return }
+        await execAsync('kill -15 ' + pid).catch(() => execAsync('kill -9 ' + pid))
+        res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify({ ok: true }))
+      } catch(e) {
+        res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify({ ok: false, error: e.message }))
+      }
+      return
+    }
+    if (req.method === 'GET' && req.url === '/api/mac-stats') {
+      try {
+        const os = await import('os')
+        const totalMem = os.totalmem()
+        const freeMem  = os.freemem()
+        const usedMem  = totalMem - freeMem
+        const cpus     = os.cpus()
+        const loadAvg  = os.loadavg()
+        const uptime   = os.uptime()
+        const cpuPct   = Math.min(100, Math.round((loadAvg[0] / cpus.length) * 100))
+        const uptimeStr = uptime > 86400
+          ? Math.floor(uptime/86400) + 'd ' + Math.floor((uptime%86400)/3600) + 'h'
+          : Math.floor(uptime/3600) + 'h ' + Math.floor((uptime%3600)/60) + 'm'
+
+        // Top memory hogs via ps — group by process name
+        let topProcs = []
+        try {
+          const { stdout: psOut } = await execAsync('ps aux -m')
+          const psLines = psOut.trim().split('\n').slice(1)
+          const grouped = {}
+          psLines.forEach(line => {
+            const parts = line.trim().split(/\s+/)
+            const rss = parseInt(parts[5]) || 0
+            const cpu = parseFloat(parts[2]) || 0
+            const mem = parseFloat(parts[3]) || 0
+            const pid = parts[1]
+            let name = parts.slice(10).join(' ').replace(/.*\//, '').split(' ')[0] || '?'
+            // Normalize Chrome/Electron helper variants
+            if (/chrome helper|google chrome helper/i.test(name) || /chrome.*helper/i.test(parts.slice(10).join(' '))) name = 'Chrome Helper'
+            if (/google chrome$/i.test(parts.slice(10).join(' '))) name = 'Google Chrome'
+            if (!grouped[name]) grouped[name] = { name, rss_kb: 0, cpu_pct: 0, mem_pct: 0, count: 0, pid }
+            grouped[name].rss_kb  += rss
+            grouped[name].cpu_pct += cpu
+            grouped[name].mem_pct += mem
+            grouped[name].count++
+          })
+          topProcs = Object.values(grouped)
+            .sort((a, b) => b.rss_kb - a.rss_kb)
+            .slice(0, 15)
+            .map(p => ({
+              pid:     p.count > 1 ? p.count + ' procs' : p.pid,
+              cpu_pct: p.cpu_pct.toFixed(1),
+              mem_pct: p.mem_pct.toFixed(1),
+              rss_kb:  p.rss_kb,
+              name:    p.name
+            }))
+        } catch(e) {}
+
+        // Disk usage via df
+        let disks = []
+        try {
+          const { stdout } = await execAsync('df -k / /System/Volumes/Data 2>/dev/null || df -k /')
+          const lines = stdout.trim().split('\n').slice(1)
+          disks = lines.map(line => {
+            const parts = line.trim().split(/\s+/)
+            const total = parseInt(parts[1]) * 1024
+            const used  = parseInt(parts[2]) * 1024
+            const pct   = parseInt(parts[4])
+            const mount = parts[8] ?? parts[5] ?? '/'
+            return { mount, total, used, pct }
+          }).filter(d => d.mount === '/' || d.mount === '/System/Volumes/Data')
+          // Deduplicate — prefer /System/Volumes/Data if both present
+          if (disks.length > 1) disks = disks.filter(d => d.mount === '/System/Volumes/Data')
+        } catch(e) {}
+
+        // Stringify BEFORE writeHead so any serialization error is caught cleanly
+        const macJson = JSON.stringify({
+          cpu_pct: cpuPct,
+          load_avg: loadAvg.map(l => Math.round(l * 100) / 100),
+          cpu_count: cpus.length,
+          cpu_model: cpus[0]?.model ?? null,
+          mem_total: totalMem,
+          mem_used:  usedMem,
+          mem_pct:   Math.round((usedMem / totalMem) * 100),
+          uptime: uptimeStr,
+          hostname: os.hostname(),
+          disks,
+          top_procs: topProcs
+        })
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(macJson)
+      } catch(e) {
+        if (!res.headersSent) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })) }
+      }
+      return
+    }
     if (req.method === 'GET' && req.url === '/api/services') {
       try {
         // Known labels (port → description)
