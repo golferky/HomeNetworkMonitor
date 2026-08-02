@@ -9,7 +9,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.08.01.4'
+const WATCHER_VERSION = '2026.08.02.1'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -1781,10 +1781,21 @@ async function loadMacStats() {
     var cpuLabel = d.cpu_pct + '% (load ' + (d.load_avg?.[0] ?? '?') + ' / ' + d.cpu_count + ' cores)'
     var memUsedGB  = (d.mem_used  / 1073741824).toFixed(1)
     var memTotalGB = (d.mem_total / 1073741824).toFixed(1)
-    var memLabel = memUsedGB + ' GB / ' + memTotalGB + ' GB'
+    var memLabel = memUsedGB + ' GB / ' + memTotalGB + ' GB (wired+active)'
+    var memGaugeHtml = macGauge('Memory', d.mem_pct, memLabel, '#38bdf8')
+    if (d.mem_wired != null) {
+      var gb = function(b) { return (b/1073741824).toFixed(1) }
+      memGaugeHtml += '<div style="font-size:10px;margin-top:4px;line-height:1.8">' +
+        '<span style="color:#f87171">⬤ Wired: '      + gb(d.mem_wired)      + ' GB</span>  ' +
+        '<span style="color:#fbbf24">⬤ Active: '     + gb(d.mem_active)     + ' GB</span>  ' +
+        '<span style="color:#7c6af7">⬤ Compressed: ' + gb(d.mem_compressed) + ' GB</span><br>' +
+        '<span style="color:#64748b">⬤ Inactive: '   + gb(d.mem_inactive)   + ' GB</span>  ' +
+        '<span style="color:#475569">⬤ Free: '       + gb(d.mem_free)       + ' GB</span>' +
+        '</div>'
+    }
     document.getElementById('mac-cpu-mem').innerHTML =
       macGauge('CPU', d.cpu_pct, cpuLabel, '#7c6af7') +
-      macGauge('Memory', d.mem_pct, memLabel, '#38bdf8')
+      memGaugeHtml
 
     var diskHtml = ''
     if (d.disks && d.disks.length) {
@@ -2890,9 +2901,31 @@ function startDashboard() {
       try {
         const os = await import('os')
         const totalMem = os.totalmem()
-        const freeMem  = os.freemem()
-        const usedMem  = totalMem - freeMem
         const cpus     = os.cpus()
+
+        // Use vm_stat for accurate macOS memory breakdown (os.freemem only counts truly free pages)
+        let vmStatMem = null
+        try {
+          const { stdout: vmStatOut } = await execAsync('vm_stat')
+          const pageSizeMatch = vmStatOut.match(/page size of (\d+) bytes/)
+          const pageSize = pageSizeMatch ? parseInt(pageSizeMatch[1]) : 4096
+          const getPages = (key) => {
+            const m = vmStatOut.match(new RegExp(key + ':\\s+([\\d]+)'))
+            return m ? parseInt(m[1]) * pageSize : 0
+          }
+          vmStatMem = {
+            free:       getPages('Pages free'),
+            active:     getPages('Pages active'),
+            inactive:   getPages('Pages inactive'),
+            wired:      getPages('Pages wired down'),
+            compressed: getPages('Pages occupied by compressor'),
+            speculative:getPages('Pages speculative')
+          }
+        } catch(e) {}
+        // Truly in-use = wired + active + compressed (inactive is reclaimable cache)
+        const usedMem = vmStatMem
+          ? (vmStatMem.wired + vmStatMem.active + vmStatMem.compressed)
+          : (totalMem - os.freemem())
         const loadAvg  = os.loadavg()
         const uptime   = os.uptime()
         const cpuPct   = Math.min(100, Math.round((loadAvg[0] / cpus.length) * 100))
@@ -2957,9 +2990,14 @@ function startDashboard() {
           load_avg: loadAvg.map(l => Math.round(l * 100) / 100),
           cpu_count: cpus.length,
           cpu_model: cpus[0]?.model ?? null,
-          mem_total: totalMem,
-          mem_used:  usedMem,
-          mem_pct:   Math.round((usedMem / totalMem) * 100),
+          mem_total:      totalMem,
+          mem_used:       usedMem,
+          mem_pct:        Math.round((usedMem / totalMem) * 100),
+          mem_wired:      vmStatMem?.wired      ?? null,
+          mem_active:     vmStatMem?.active     ?? null,
+          mem_inactive:   vmStatMem?.inactive   ?? null,
+          mem_compressed: vmStatMem?.compressed ?? null,
+          mem_free:       vmStatMem?.free       ?? null,
           uptime: uptimeStr,
           hostname: os.hostname(),
           disks,
