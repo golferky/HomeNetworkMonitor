@@ -3276,15 +3276,23 @@ function startControlServer() {
         const s = await statsResp.json()
         const svc = await svcResp.json()
         const GB = (b) => (b / 1073741824).toFixed(1)
-        const disk = (s.disks ?? [])[0] ?? {}
+        const allDisks = (s.disks ?? []).map(d => ({
+          label: (d.mount === '/System/Volumes/Data' || d.mount === '/') ? 'Internal SSD' : d.mount.replace('/Volumes/', ''),
+          mount: d.mount,
+          pct:   d.pct ?? 0,
+          free:  (d.total && d.used) ? GB(d.total - d.used) + ' GB' : '-',
+          total: d.total ? GB(d.total) + ' GB' : '-'
+        }))
+        const disk = allDisks[0] ?? {}
         const merged = {
           cpu:       s.cpu_pct ?? 0,
           mem_pct:   s.mem_pct ?? 0,
           mem_used:  GB(s.mem_used  ?? 0),
           mem_total: GB(s.mem_total ?? 0),
           disk_pct:  disk.pct ?? 0,
-          disk_free:  disk.total && disk.used ? GB(disk.total - disk.used) + ' GB' : '-',
-          disk_total: disk.total ? GB(disk.total) + ' GB' : '-',
+          disk_free:  disk.free ?? '-',
+          disk_total: disk.total ?? '-',
+          disks: allDisks,
           model:  s.cpu_model ?? '',
           uptime: s.uptime    ?? '',
           processes: (s.top_procs ?? []).map(p => ({

@@ -140,9 +140,19 @@ async function loadMacMini() {
           <div style="font-size:11px;color:#64748b">${d.mem_total||'-'} GB total</div>
         </div>
         <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
-          <div style="font-size:11px;color:#64748b;margin-bottom:6px">STORAGE</div>
-          <div style="font-size:18px;font-weight:700;color:#7c6af7">${d.disk_free||'-'} <span style="font-size:11px;color:#64748b">free</span></div>
-          <div style="font-size:11px;color:#64748b">${d.disk_total||'-'} total</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:8px">STORAGE</div>
+          ${(d.disks||[{label:'Internal SSD',pct:d.disk_pct||0,free:d.disk_free||'-',total:d.disk_total||'-'}]).map(dk => {
+            const dc = dk.pct > 80 ? '#f87171' : dk.pct > 60 ? '#fbbf24' : '#4ade80'
+            return \`<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px">
+                <span style="color:#94a3b8">\${dk.label}</span><span style="color:\${dc};font-weight:700">\${dk.pct}%</span>
+              </div>
+              <div style="background:#334155;border-radius:4px;height:5px;margin-bottom:2px">
+                <div style="background:\${dc};width:\${Math.min(dk.pct,100)}%;height:5px;border-radius:4px"></div>
+              </div>
+              <div style="font-size:10px;color:#64748b">\${dk.free} free of \${dk.total}</div>
+            </div>\`
+          }).join('')}
         </div>
       </div>
 
