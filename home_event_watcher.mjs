@@ -2865,8 +2865,13 @@ function startDashboard() {
             const freeGB  = parseSize(r['5'])
             const usedGB  = (totalGB != null && freeGB != null) ? totalGB - freeGB : null
             const pct     = (totalGB && usedGB != null) ? Math.round((usedGB / totalGB) * 100) : null
+            const rawLabel = r['2'] ?? '?'
+            const cleanLabel = rawLabel
+              .replace(/\[Volume ([^,]+),.+\]/, '$1')
+              .replace(/\[Single Disk Volume:\s*[^']*'([^']+)'\]/, 'USB Drive ($1)')
+              .trim()
             return {
-              label:    r['2'] ?? '?',
+              label:    cleanLabel,
               status:   r['6'] ?? '?',
               fsType:   r['3'] ?? null,
               total:    fmtSize(r['4']),
@@ -2924,13 +2929,13 @@ function startDashboard() {
                 let output = ''
                 conn.on('ready', () => {
                   // Combined command: qpkg list + share symlinks separated by marker
-                  const cmd = "ls /share/CACHEDEV1_DATA/.qpkg/ 2>/dev/null && echo '===SHARES===' && find /share -maxdepth 1 -type l -exec basename {} \\; 2>/dev/null | sort && echo '===TM_BUNDLES===' && find /share -maxdepth 4 -name '*.sparsebundle' 2>/dev/null | while IFS= read -r f; do mod=$(stat -c '%Y' \"$f\" 2>/dev/null); echo \"${f}|${mod}\"; done"
+                  const cmd = "ls /share/CACHEDEV1_DATA/.qpkg/ 2>/dev/null && echo '===SHARES===' && find /share -maxdepth 1 -type l -exec basename {} \\; 2>/dev/null | sort && echo '===TM_BUNDLES===' && find /share -maxdepth 4 -name '*.sparsebundle' 2>/dev/null | while IFS= read -r f; do mod=$(stat -c '%Y' \"$f\" 2>/dev/null); echo \"${f}|${mod}\"; done && echo '===USB_VOLS===' && df -k /share/USB* /share/external* 2>/dev/null || true"
                   conn.exec(cmd, (err, stream) => {
                     if (err) { conn.end(); resolve({ apps: [], shares: [], tmBundles: [] }); return }
                     stream.on('data', d => output += d)
                     stream.on('close', () => {
                       conn.end()
-                      const parts = output.split(/===SHARES===|===TM_BUNDLES===/)
+                      const parts = output.split(/===SHARES===|===TM_BUNDLES===|===USB_VOLS===/)
                       const appsPart   = parts[0] ?? ''
                       const sharesPart = parts[1] ?? ''
                       const tmPart     = parts[2] ?? ''
@@ -2948,7 +2953,18 @@ function startDashboard() {
                         const machine = path.split('/').pop().replace(/\.sparsebundle$/, '')
                         return { machine, lastBackup: epoch ? new Date(epoch * 1000).toISOString() : null, path }
                       }).filter(b => b.machine)
-                      resolve({ apps: pkgs, shares: shareList, tmBundles })
+                      const usbPart = parts[3] ?? ''
+                      const usbVols = usbPart.trim().split('\n').slice(1).filter(Boolean).map(line => {
+                        const p = line.trim().split(/\s+/)
+                        if (p.length < 6) return null
+                        const totalKB = parseInt(p[1]); const usedKB = parseInt(p[2]); const mount = p[5]
+                        if (!totalKB || isNaN(totalKB)) return null
+                        const totalGB = totalKB / 1048576; const freeGB = (totalKB - usedKB) / 1048576
+                        const pct = Math.round(usedKB / totalKB * 100)
+                        const label = mount.replace('/share/', '').replace(/_DATA$/, '')
+                        return { label, status: 'Ready', fsType: 'USB', total: totalGB >= 1024 ? (totalGB/1024).toFixed(2)+' TB' : totalGB.toFixed(2)+' GB', free: freeGB >= 1024 ? (freeGB/1024).toFixed(2)+' TB' : freeGB.toFixed(2)+' GB', used: ((totalKB-usedKB)/1048576 >= 1024 ? ((totalKB-usedKB)/1073741824).toFixed(2)+' TB' : ((totalKB-usedKB)/1048576).toFixed(2)+' GB'), used_pct: pct }
+                      }).filter(v => v && v.total && parseFloat(v.total) > 1)
+                      resolve({ apps: pkgs, shares: shareList, tmBundles, usbVols })
                     })
                   })
                 })
@@ -2958,6 +2974,7 @@ function startDashboard() {
               apps = sshResult.apps
               shares    = sshResult.shares
               tmBundles = sshResult.tmBundles ?? []
+              if (sshResult.usbVols?.length) volumes = [...volumes, ...sshResult.usbVols]
             } catch(e) { console.log('[QNAP] SSH error:', e.message) }
           }
         } catch(e) { console.log('[QNAP] apps fetch error:', e.message) }
