@@ -3261,7 +3261,8 @@ function startControlServer() {
     // Mac Mini API proxy - forward to monitor server
     if (req.url?.startsWith('/api/macmini') || req.url?.startsWith('/api/services')) {
       try {
-        const proxyResp = await fetch(`http://localhost:${DASHBOARD_PORT}${req.url}`, { method: req.method })
+        const proxyUrl = req.url.replace('/api/macmini', '/api/services')
+        const proxyResp = await fetch(`http://localhost:${DASHBOARD_PORT}${proxyUrl}`, { method: req.method })
         const body = await proxyResp.text()
         res.writeHead(proxyResp.status, {'Content-Type': proxyResp.headers.get('Content-Type') || 'application/json'})
         res.end(body)
