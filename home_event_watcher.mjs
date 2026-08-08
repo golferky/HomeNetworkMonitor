@@ -3099,21 +3099,28 @@ function startDashboard() {
             }))
         } catch(e) {}
 
-        // Disk usage via df
+        // Disk usage via df — include internal + external USB volumes
         let disks = []
         try {
-          const { stdout } = await execAsync('df -k / /System/Volumes/Data 2>/dev/null || df -k /')
+          const { stdout } = await execAsync('df -k 2>/dev/null')
           const lines = stdout.trim().split('\n').slice(1)
-          disks = lines.map(line => {
+          const all = lines.map(line => {
             const parts = line.trim().split(/\s+/)
             const total = parseInt(parts[1]) * 1024
             const used  = parseInt(parts[2]) * 1024
             const pct   = parseInt(parts[4])
             const mount = parts[8] ?? parts[5] ?? '/'
             return { mount, total, used, pct }
-          }).filter(d => d.mount === '/' || d.mount === '/System/Volumes/Data')
-          // Deduplicate — prefer /System/Volumes/Data if both present
-          if (disks.length > 1) disks = disks.filter(d => d.mount === '/System/Volumes/Data')
+          }).filter(d =>
+            d.mount === '/' ||
+            d.mount === '/System/Volumes/Data' ||
+            (d.mount.startsWith('/Volumes/') && !d.mount.startsWith('/Volumes/.timemachine') && d.total > 0 && !isNaN(d.total))
+          )
+          // Internal: prefer /System/Volumes/Data over /
+          const internal = all.filter(d => d.mount === '/' || d.mount === '/System/Volumes/Data')
+          const external = all.filter(d => d.mount.startsWith('/Volumes/'))
+          const primary = internal.length > 1 ? internal.filter(d => d.mount === '/System/Volumes/Data') : internal
+          disks = [...primary, ...external]
         } catch(e) {}
 
         // Stringify BEFORE writeHead so any serialization error is caught cleanly
