@@ -44,6 +44,9 @@
     <button class="tab" onclick="showTab('climate',this)">🌡️ Climate</button>
     <button class="tab" onclick="showTab('tvs',this)">📺 TVs</button>
     <button class="tab" onclick="showTab('appliances',this)">🍳 Appliances</button>
+    <button class="tab" onclick="showTab('cameras',this)">📷 Cameras</button>
+    <button class="tab" onclick="showTab('events',this)">📊 Events</button>
+    <button class="tab" onclick="showTab('qnap',this)">🖥️ QNAP</button>
   </div>
 </div>
 
@@ -52,6 +55,9 @@
 <div id="tab-climate" class="content"></div>
 <div id="tab-tvs" class="content"></div>
 <div id="tab-appliances" class="content"></div>
+<div id="tab-cameras" class="content"></div>
+<div id="tab-events" class="content"></div>
+<div id="tab-qnap" class="content"></div>
 <div id="status" class="status-bar"></div>
 
 <script>
@@ -60,6 +66,120 @@ function showTab(name, btn) {
   document.querySelectorAll('.content').forEach(c => c.classList.remove('active'))
   document.getElementById('tab-' + name).classList.add('active')
   btn.classList.add('active')
+  if (name === 'cameras') reloadSnapshots()
+  if (name === 'qnap') loadQnap()
+}
+
+async function loadQnap() {
+  const el = document.getElementById('tab-qnap')
+  el.innerHTML = '<p style="color:var(--muted)">Loading QNAP data…</p>'
+  try {
+    const r = await fetch('/api/qnap')
+    const d = await r.json()
+    if (d.error) { el.innerHTML = `<p style="color:#f87171">⚠ ${d.error}</p>`; return }
+
+    const si = d.sysinfo || {}
+    const cpuPct = si.cpu_usage || 0
+    const memPct = si.mem_total ? Math.round(si.mem_used/si.mem_total*100) : 0
+
+    const gauge = (label, pct, color) => `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:#94a3b8">${label}</span><span style="color:${color};font-weight:700">${pct}%</span>
+        </div>
+        <div style="background:#334155;border-radius:4px;height:6px">
+          <div style="background:${color};width:${pct}%;height:6px;border-radius:4px"></div>
+        </div>
+      </div>`
+
+    const volHtml = (d.volumes||[]).map(v => {
+      const c = v.used_pct > 80 ? '#f87171' : v.used_pct > 60 ? '#fbbf24' : '#4ade80'
+      return `<div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">${v.label}</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:4px">
+          <span>${v.used} used of ${v.total}</span><span style="color:${c}">${v.used_pct}%</span>
+        </div>
+        <div style="background:#334155;border-radius:4px;height:6px">
+          <div style="background:${c};width:${v.used_pct}%;height:6px;border-radius:4px"></div>
+        </div>
+        <div style="font-size:10px;color:#64748b;margin-top:4px">${v.status} · ${v.fsType}</div>
+      </div>`
+    }).join('')
+
+    const tmHtml = (d.tmBundles||[]).map(b => {
+      const last = b.lastBackup ? new Date(b.lastBackup).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : 'Unknown'
+      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #334155">
+        <span style="color:#e2e8f0">${b.machine}</span>
+        <span style="float:right;color:#64748b">${last}</span>
+      </div>`
+    }).join('')
+
+    const diskHtml = (d.disks||[]).map(dk => {
+      const tempColor = dk.temp > 45 ? '#f87171' : dk.temp > 38 ? '#fbbf24' : '#4ade80'
+      const healthColor = dk.health === 'Good' ? '#4ade80' : '#f87171'
+      return `<tr>
+        <td style="padding:5px 8px">${dk.label||dk.id}</td>
+        <td style="padding:5px 8px;color:#94a3b8;font-size:11px">${dk.model||'-'}</td>
+        <td style="padding:5px 8px;color:${tempColor}">${dk.temp ? dk.temp+'°C' : '-'}</td>
+        <td style="padding:5px 8px;color:${healthColor}">${dk.health||'-'}</td>
+        <td style="padding:5px 8px;color:#64748b">${dk.capacity||'-'}</td>
+      </tr>`
+    }).join('')
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:15px;font-weight:700">${si.hostname||'GarysNas'}</div>
+          <div style="font-size:11px;color:#64748b">${si.model||''} · Up ${si.uptime||''}</div>
+        </div>
+        <span style="color:#4ade80;font-size:12px">● Connected</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
+          ${gauge('CPU', cpuPct, cpuPct>80?'#f87171':cpuPct>50?'#fbbf24':'#4ade80')}
+          ${gauge('Memory', memPct, memPct>80?'#f87171':memPct>60?'#fbbf24':'#4ade80')}
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px">MEMORY</div>
+          <div style="font-size:18px;font-weight:700;color:#7c6af7">${si.mem_used?.toLocaleString()||'-'} <span style="font-size:11px;color:#64748b">MB used</span></div>
+          <div style="font-size:11px;color:#64748b">${si.mem_total?.toLocaleString()||'-'} MB total</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Storage Volumes</div>
+      ${volHtml}
+
+      ${diskHtml ? `
+        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Drives</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><th style="text-align:left;padding:5px 8px;color:#64748b">Drive</th><th style="text-align:left;padding:5px 8px;color:#64748b">Model</th><th style="text-align:left;padding:5px 8px;color:#64748b">Temp</th><th style="text-align:left;padding:5px 8px;color:#64748b">Health</th><th style="text-align:left;padding:5px 8px;color:#64748b">Size</th></tr>
+          ${diskHtml}
+        </table>` : ''}
+
+      ${tmHtml ? `
+        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Time Machine Backups</div>
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">${tmHtml}</div>` : ''}
+
+      <button onclick="loadQnap()" style="margin-top:12px;background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px">⟳ Refresh</button>
+    `
+  } catch(e) {
+    el.innerHTML = `<p style="color:#f87171">Error: ${e.message}</p>`
+  }
+}
+
+function reloadSnapshots() {
+  document.querySelectorAll('#tab-cameras img').forEach((img, i) => {
+    setTimeout(() => {
+      const base = img.src.split('?')[0]
+      img.style.display = 'block'
+      if (img.nextElementSibling) img.nextElementSibling.style.display = 'none'
+      const newImg = new Image()
+      newImg.onload = () => { img.src = newImg.src }
+      newImg.onerror = () => { img.style.display = 'none'; if (img.nextElementSibling) img.nextElementSibling.style.display = 'block' }
+      newImg.src = base + '?t=' + Date.now()
+    }, i * 1500)
+  })
 }
 
 function showStatus(msg) {
@@ -167,6 +287,9 @@ async function loadContent() {
   document.getElementById('tab-climate').innerHTML = d.climate
   document.getElementById('tab-tvs').innerHTML = d.tvs
   document.getElementById('tab-appliances').innerHTML = d.appliances
+  document.getElementById('tab-cameras').innerHTML = d.cameras || '<p style="color:var(--muted)">Loading cameras...</p>'
+  document.getElementById('tab-events').innerHTML = d.events || '<p style="color:var(--muted)">No events yet</p>'
+  // QNAP loads on demand
 }
 loadContent()
 </script>

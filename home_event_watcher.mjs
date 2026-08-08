@@ -1324,7 +1324,7 @@ function getEventPriority(event) {
 }
 
 const DASHBOARD_PORT   = parseInt(process.env.DASHBOARD_PORT   ?? '5558', 10)
-const CONTROL_PORT     = parseInt(process.env.CONTROL_PORT     ?? '5559', 10)
+const CONTROL_PORT     = parseInt(process.env.CONTROL_PORT     ?? '8442', 10)
 
 async function buildDashboard(history, devices) {
   const states = history.states ?? {}
@@ -3258,6 +3258,44 @@ function startControlServer() {
       return
     }
 
+    // QNAP API proxy - forward to monitor server
+    if (req.url?.startsWith('/api/qnap')) {
+      try {
+        const proxyResp = await fetch(`http://localhost:${DASHBOARD_PORT}${req.url}`, {
+          method: req.method,
+        })
+        const body = await proxyResp.text()
+        res.writeHead(proxyResp.status, {'Content-Type': proxyResp.headers.get('Content-Type') || 'application/json'})
+        res.end(body)
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({error: e.message}))
+      }
+      return
+    }
+
+    // Camera snapshot proxy
+    if (req.url?.startsWith('/snapshot/')) {
+      const camName = decodeURIComponent(req.url.replace('/snapshot/', '').split('?')[0])
+      try {
+        if (!ringApiInstance) { res.writeHead(503); res.end('Ring not ready'); return }
+        const cams = await ringApiInstance.getCameras()
+        const cam = cams.find(c => c.name === camName)
+        if (!cam) { res.writeHead(404); res.end(); return }
+        try {
+          const snapshot = await cam.getSnapshot()
+          res.writeHead(200, {'Content-Type':'image/jpeg','Cache-Control':'no-cache'})
+          res.end(snapshot)
+        } catch(snapErr) {
+          if (snapErr.message?.includes('Motion detection is disabled')) {
+            const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200"><rect width="640" height="200" fill="#1e293b"/><text x="320" y="90" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="14">Motion Detection Disabled</text><text x="320" y="115" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11">${camName}</text></svg>`)
+            res.writeHead(200, {'Content-Type':'image/svg+xml'})
+            res.end(svg)
+          } else { res.writeHead(500); res.end() }
+        }
+      } catch(e) { res.writeHead(500); res.end(e.message) }
+      return
+    }
+
     if (req.method === 'GET' && (req.url === '/' || req.url === '/control')) {
       try {
         const html = readFileSync('/Users/garyscudder/epg/control_page.html', 'utf-8')
@@ -3444,8 +3482,70 @@ function startControlServer() {
           ${rangeState.state==='on' ? `<div class="btn-group"><button class="btn btn-danger" onclick="stCmd('8184ceae-f175-b509-ab9d-bb2be1d79294','ovenOperatingState','stop')">Turn Off</button></div>` : '<div style="color:#64748b;font-size:11px">No action needed</div>'}
         </div>` : '<p style="color:#64748b">No appliance data</p>'
 
+        // Camera cards
+        let cameras = '<p style="color:#64748b">Ring API initializing...</p>'
+        if (ringApiInstance) {
+          try {
+            const cams = await ringApiInstance.getCameras()
+            cameras = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+              ${cams.map(cam => {
+                const snapUrl = `/snapshot/${encodeURIComponent(cam.name)}`
+                return `<div style="background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155">
+                  <div style="padding:8px 12px;font-size:12px;font-weight:700">${cam.name}</div>
+                  <a href="${snapUrl}" target="_blank">
+                    <img src="${snapUrl}?t=${Date.now()}" style="width:100%;display:block;max-height:200px;object-fit:cover"
+                      onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <div style="display:none;height:120px;align-items:center;justify-content:center;color:#64748b;font-size:11px">Motion Detection Disabled</div>
+                  </a>
+                  <div style="padding:4px 12px 8px;font-size:10px;color:#64748b">${cam.deviceType}</div>
+                </div>`
+              }).join('')}
+            </div>`
+          } catch(e) {
+            cameras = `<p style="color:#f87171">Error: ${e.message}</p>`
+          }
+        }
+
+        // Events tab - recent events + battery
+        const recentEvents = (history.events || []).slice(-30).reverse()
+        const battRows = [...batteryCache.values()].map(b => {
+          const pct = (v, icon='') => v != null ? `<span style="color:${v<20?'#f87171':v<50?'#fbbf24':'#4ade80'}">${icon}${v}%</span>` : ''
+          const parts = [b.left!=null?`L:${pct(b.left)}`:'', b.right!=null?`R:${pct(b.right)}`:'', b.case!=null?`Case:${pct(b.case)}`:'', b.watch!=null?pct(b.watch,'⌚'):'', b.mouse!=null?pct(b.mouse,'🖱️'):''].filter(Boolean).join(' ')
+          return `<tr><td>Bluetooth</td><td>${b.name}</td><td>${parts}</td></tr>`
+        }).join('')
+
+        let ringBattRows = ''
+        try {
+          const rh = JSON.parse(readFileSync('ring_battery_history.json', 'utf-8'))
+          const latest = {}
+          for (const r of (rh.readings || [])) { if (r.battery != null) latest[r.name] = r }
+          ringBattRows = Object.values(latest).sort((a,b)=>(a.battery??100)-(b.battery??100)).map(r => {
+            const c = r.battery<20?'#f87171':r.battery<50?'#fbbf24':'#4ade80'
+            return `<tr><td>Ring</td><td>${r.name}</td><td><span style="color:${c}">${r.battery}%${r.battery<20?' ⚠️':''}</span></td></tr>`
+          }).join('')
+        } catch(e) {}
+
+        const eventRows = recentEvents.map(e => {
+          const t = new Date(e.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})
+          const priority = getEventPriority(e)
+          const color = priority==='critical'?'#f87171':priority==='important'?'#fbbf24':'#9ca3af'
+          return `<tr><td style="color:${color}">${priority}</td><td style="color:#64748b">${t}</td><td>${e.source}</td><td>${e.name}</td><td>${e.previousState??''} → ${e.state}</td></tr>`
+        }).join('')
+
+        const events = `
+          <h2 style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">Battery Levels</h2>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:20px">
+            <tr><th style="text-align:left;color:#64748b;padding:4px">Source</th><th style="text-align:left;color:#64748b;padding:4px">Device</th><th style="text-align:left;color:#64748b;padding:4px">Battery</th></tr>
+            ${battRows}${ringBattRows}
+          </table>
+          <h2 style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">Recent Events</h2>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr><th style="text-align:left;color:#64748b;padding:4px">Priority</th><th style="text-align:left;color:#64748b;padding:4px">Time</th><th style="text-align:left;color:#64748b;padding:4px">Source</th><th style="text-align:left;color:#64748b;padding:4px">Device</th><th style="text-align:left;color:#64748b;padding:4px">Change</th></tr>
+            ${eventRows}
+          </table>`
+
         res.writeHead(200, {'Content-Type':'application/json'})
-        res.end(JSON.stringify({ now, version: WATCHER_VERSION, security, lights, climate, tvs, appliances }))
+        res.end(JSON.stringify({ now, version: WATCHER_VERSION, security, lights, climate, tvs, appliances, cameras, events }))
       } catch(e) { res.writeHead(500); res.end(JSON.stringify({error: e.message})) }
       return
     }
