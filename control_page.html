@@ -47,6 +47,7 @@
     <button class="tab" onclick="showTab('cameras',this)">📷 Cameras</button>
     <button class="tab" onclick="showTab('events',this)">📊 Events</button>
     <button class="tab" onclick="showTab('qnap',this)">🖥️ QNAP</button>
+    <button class="tab" onclick="showTab('macmini',this)">🍎 Mac Mini</button>
   </div>
 </div>
 
@@ -58,6 +59,7 @@
 <div id="tab-cameras" class="content"></div>
 <div id="tab-events" class="content"></div>
 <div id="tab-qnap" class="content"></div>
+<div id="tab-macmini" class="content"></div>
 <div id="status" class="status-bar"></div>
 
 <script>
@@ -68,6 +70,108 @@ function showTab(name, btn) {
   btn.classList.add('active')
   if (name === 'cameras') reloadSnapshots()
   if (name === 'qnap') loadQnap()
+  if (name === 'macmini') loadMacMini()
+}
+
+async function loadMacMini() {
+  const el = document.getElementById('tab-macmini')
+  el.innerHTML = '<p style="color:var(--muted)">Loading Mac Mini data…</p>'
+  try {
+    const r = await fetch('/api/macmini')
+    const d = await r.json()
+    if (d.error) { el.innerHTML = `<p style="color:#f87171">⚠ ${d.error}</p>`; return }
+
+    const gauge = (label, pct, color) => `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:#94a3b8">${label}</span><span style="color:${color};font-weight:700">${pct}%</span>
+        </div>
+        <div style="background:#334155;border-radius:4px;height:6px">
+          <div style="background:${color};width:${Math.min(pct,100)}%;height:6px;border-radius:4px"></div>
+        </div>
+      </div>`
+
+    const cpuColor = d.cpu > 80 ? '#f87171' : d.cpu > 50 ? '#fbbf24' : '#4ade80'
+    const memColor = d.mem_pct > 80 ? '#f87171' : d.mem_pct > 60 ? '#fbbf24' : '#4ade80'
+    const diskColor = d.disk_pct > 80 ? '#f87171' : d.disk_pct > 60 ? '#fbbf24' : '#4ade80'
+
+    const procRows = (d.processes||[]).map(p => `
+      <tr>
+        <td style="padding:4px 8px;color:#94a3b8">${p.pid}</td>
+        <td style="padding:4px 8px">${p.name}</td>
+        <td style="padding:4px 8px;color:#7c6af7">${p.mem}%</td>
+        <td style="padding:4px 8px;color:#64748b">${p.rss}</td>
+        <td style="padding:4px 8px;color:#4ade80">${p.cpu}%</td>
+      </tr>`).join('')
+
+    const serviceRows = (d.services||[]).map(s => `
+      <tr>
+        <td style="padding:4px 8px;color:#7c6af7">${s.port}</td>
+        <td style="padding:4px 8px">${s.process}</td>
+        <td style="padding:4px 8px;color:#64748b">${s.pid}</td>
+        <td style="padding:4px 8px;color:#94a3b8">${s.description||''}</td>
+      </tr>`).join('')
+
+    const agentRows = (d.agents||[]).map(a => `
+      <tr>
+        <td style="padding:4px 8px"><span style="color:${a.running?'#4ade80':'#64748b'}">${a.running?'●':'○'}</span></td>
+        <td style="padding:4px 8px;font-size:11px">${a.label}</td>
+        <td style="padding:4px 8px;font-size:10px;color:#64748b">${a.script||''}</td>
+      </tr>`).join('')
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:15px;font-weight:700">Gary's Mac Mini</div>
+          <div style="font-size:11px;color:#64748b">${d.model||''} · Up ${d.uptime||''}</div>
+        </div>
+        <span style="color:#4ade80;font-size:12px">● Local</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
+          ${gauge('CPU', d.cpu||0, cpuColor)}
+          ${gauge('Memory', d.mem_pct||0, memColor)}
+          ${gauge('Disk', d.disk_pct||0, diskColor)}
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px">MEMORY</div>
+          <div style="font-size:18px;font-weight:700;color:#7c6af7">${d.mem_used||'-'} <span style="font-size:11px;color:#64748b">GB used</span></div>
+          <div style="font-size:11px;color:#64748b">${d.mem_total||'-'} GB total</div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:12px;border:1px solid #334155">
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px">STORAGE</div>
+          <div style="font-size:18px;font-weight:700;color:#7c6af7">${d.disk_free||'-'} <span style="font-size:11px;color:#64748b">free</span></div>
+          <div style="font-size:11px;color:#64748b">${d.disk_total||'-'} total</div>
+        </div>
+      </div>
+
+      ${procRows ? `
+        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Top Processes</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:16px">
+          <tr><th style="text-align:left;padding:4px 8px;color:#64748b">PID</th><th style="text-align:left;padding:4px 8px;color:#64748b">Process</th><th style="text-align:left;padding:4px 8px;color:#64748b">Mem%</th><th style="text-align:left;padding:4px 8px;color:#64748b">RSS</th><th style="text-align:left;padding:4px 8px;color:#64748b">CPU%</th></tr>
+          ${procRows}
+        </table>` : ''}
+
+      ${serviceRows ? `
+        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Listening Services</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:16px">
+          <tr><th style="text-align:left;padding:4px 8px;color:#64748b">Port</th><th style="text-align:left;padding:4px 8px;color:#64748b">Process</th><th style="text-align:left;padding:4px 8px;color:#64748b">PID</th><th style="text-align:left;padding:4px 8px;color:#64748b">Description</th></tr>
+          ${serviceRows}
+        </table>` : ''}
+
+      ${agentRows ? `
+        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Launch Agents</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:16px">
+          <tr><th style="text-align:left;padding:4px 8px;color:#64748b">Status</th><th style="text-align:left;padding:4px 8px;color:#64748b">Label</th><th style="text-align:left;padding:4px 8px;color:#64748b">Script</th></tr>
+          ${agentRows}
+        </table>` : ''}
+
+      <button onclick="loadMacMini()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px">⟳ Refresh</button>
+    `
+  } catch(e) {
+    el.innerHTML = `<p style="color:#f87171">Error: ${e.message}</p>`
+  }
 }
 
 async function loadQnap() {
