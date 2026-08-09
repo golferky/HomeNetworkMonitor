@@ -3346,6 +3346,86 @@ function startControlServer() {
       return
     }
 
+    // Orbi attached devices
+    if (req.url === '/api/orbi-devices' && req.method === 'GET') {
+      try {
+        if (!global._orbiCache) global._orbiCache = { data: null, ts: 0, cookie: null, cookieTs: 0 }
+        const ORBI_CACHE_MS = 60 * 1000
+        const ORBI_SESSION_MS = 20 * 60 * 1000
+        const now = Date.now()
+
+        // Return cached data if fresh
+        if (global._orbiCache.data && (now - global._orbiCache.ts) < ORBI_CACHE_MS) {
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify(global._orbiCache.data))
+          return
+        }
+
+        // Refresh session cookie if needed
+        if (!global._orbiCache.cookie || (now - global._orbiCache.cookieTs) > ORBI_SESSION_MS) {
+          const pw = process.env.ORBI_PASSWORD ?? ''
+          const loginResp = await fetch('http://192.168.1.1/dniapi/token', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({password: pw})
+          })
+          const setCookies = loginResp.headers.getSetCookie
+            ? loginResp.headers.getSetCookie()
+            : [loginResp.headers.get('set-cookie') ?? '']
+          const cookieStr = setCookies.map(c => c.split(';')[0]).filter(Boolean).join('; ')
+          if (cookieStr) {
+            global._orbiCache.cookie = cookieStr
+            global._orbiCache.cookieTs = now
+          }
+        }
+
+        let devData = null
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const devResp = await fetch('http://192.168.1.1/dniapi/attached', {
+            headers: global._orbiCache.cookie ? {'Cookie': global._orbiCache.cookie} : {}
+          })
+          const d = await devResp.json()
+          if (d.code === 0) { devData = d; break }
+          // session expired — force re-login next attempt
+          global._orbiCache.cookie = null
+          global._orbiCache.cookieTs = 0
+          const pw = process.env.ORBI_PASSWORD ?? ''
+          const lr = await fetch('http://192.168.1.1/dniapi/token', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({password: pw})
+          })
+          const sc = lr.headers.getSetCookie ? lr.headers.getSetCookie() : [lr.headers.get('set-cookie') ?? '']
+          const cs = sc.map(c => c.split(';')[0]).filter(Boolean).join('; ')
+          if (cs) { global._orbiCache.cookie = cs; global._orbiCache.cookieTs = Date.now() }
+        }
+
+        if (!devData) throw new Error('Could not authenticate with Orbi')
+
+        const devices = (devData?.data?.info?.devices ?? [])
+          .filter(d => d.alive === 1)
+          .map(d => ({
+            name: d.device_name || d.mac_addr,
+            ip: d.ip_addr && d.ip_addr !== '0.0.0.0' ? d.ip_addr : null,
+            mac: d.mac_addr,
+            type: d.device_type || '',
+            conn: d.conn_type || '',
+            orbi: d.connect_orbi_name || ''
+          }))
+          .sort((a, b) => (a.name||'').localeCompare(b.name||''))
+
+        const result = {devices, total: devData.data.info.devices.length, alive: devices.length, ts: new Date().toISOString()}
+        global._orbiCache.data = result
+        global._orbiCache.ts = Date.now()
+
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(result))
+      } catch(e) {
+        res.writeHead(500, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({error: e.message}))
+      }
+      return
+    }
+
     // Camera snapshot proxy
     if (req.url?.startsWith('/snapshot/')) {
       const camName = decodeURIComponent(req.url.replace('/snapshot/', '').split('?')[0])

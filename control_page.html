@@ -48,6 +48,7 @@
     <button class="tab" onclick="showTab('events',this)">📊 Events</button>
     <button class="tab" onclick="showTab('qnap',this)">🖥️ QNAP</button>
     <button class="tab" onclick="showTab('macmini',this)">🍎 Mac Mini</button>
+    <button class="tab" onclick="showTab('network',this)">🌐 Network</button>
   </div>
 </div>
 
@@ -60,6 +61,7 @@
 <div id="tab-events" class="content"></div>
 <div id="tab-qnap" class="content"></div>
 <div id="tab-macmini" class="content"></div>
+<div id="tab-network" class="content"></div>
 <div id="status" class="status-bar"></div>
 
 <script>
@@ -71,6 +73,7 @@ function showTab(name, btn) {
   if (name === 'cameras') reloadSnapshots()
   if (name === 'qnap') loadQnap()
   if (name === 'macmini') loadMacMini()
+  if (name === 'network') loadNetwork()
 }
 
 async function loadMacMini() {
@@ -390,6 +393,55 @@ async function allLightsOff() {
   document.querySelectorAll('[data-govee-id]').forEach(el => promises.push(fetch('/control/govee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:el.dataset.goveeId,on:false})})))
   await Promise.all(promises)
   showStatus('✓ All lights off')
+}
+
+async function loadNetwork() {
+  const el = document.getElementById('tab-network')
+  el.innerHTML = '<p style="color:var(--muted)">Loading network devices…</p>'
+  try {
+    const r = await fetch('/api/orbi-devices')
+    const d = await r.json()
+    if (d.error) { el.innerHTML = '<p style="color:#f87171">⚠ ' + d.error + '</p>'; return }
+
+    const connLabel = {
+      'main_2g': '2.4 GHz', 'main_5g': '5 GHz', 'main_6g': '6 GHz',
+      'wired': 'Wired', 'backhaul_wired': 'Backhaul', 'backhaul_5g': 'Backhaul 5G'
+    }
+
+    const rows = d.devices.map(function(dv) {
+      const conn = connLabel[dv.conn] || dv.conn || '—'
+      return '<tr>' +
+        '<td style="color:#e2e8f0;font-weight:600">' + (dv.name || '—') + '</td>' +
+        '<td style="color:#94a3b8;font-family:monospace">' + (dv.ip || '—') + '</td>' +
+        '<td style="color:#64748b;font-size:11px">' + (dv.type || '—') + '</td>' +
+        '<td style="color:#7c6af7;font-size:11px">' + conn + '</td>' +
+        '<td style="color:#64748b;font-size:11px">' + (dv.orbi || '—') + '</td>' +
+      '</tr>'
+    }).join('')
+
+    el.innerHTML =
+      '<div style="padding:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+          '<div style="font-size:13px;font-weight:700;color:#e2e8f0">🌐 Orbi Network — Connected Devices</div>' +
+          '<div style="font-size:11px;color:#64748b">' + d.alive + ' online of ' + d.total + ' known · <button onclick="loadNetwork()" style="background:none;border:1px solid #334155;color:#7c6af7;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">↻ Refresh</button></div>' +
+        '</div>' +
+        '<div style="overflow-x:auto">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+            '<thead><tr style="border-bottom:1px solid #334155">' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Name</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">IP</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Type</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Connection</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Orbi Node</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div style="font-size:10px;color:#475569;margin-top:8px">Updated: ' + d.ts + '</div>' +
+      '</div>'
+  } catch(e) {
+    el.innerHTML = '<p style="color:#f87171">⚠ ' + e.message + '</p>'
+  }
 }
 
 // Load content dynamically

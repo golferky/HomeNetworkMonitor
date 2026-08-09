@@ -1,13 +1,10 @@
-
-# Logs
-logs/
-*.log
-convert.log
-server.log
-
-# Environment / secrets
+node_modules/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.recovered.db
+__pycache__/
+.DS_Store
 .env
-
-# Runtime data files
-home_event_history.json
-fix_years.py.bak_*
+run/epgmanager
