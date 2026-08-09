@@ -3349,7 +3349,7 @@ function startControlServer() {
     // Orbi attached devices
     if (req.url === '/api/orbi-devices' && req.method === 'GET') {
       try {
-        if (!global._orbiCache) global._orbiCache = { data: null, ts: 0, cookie: null, cookieTs: 0 }
+        if (!global._orbiCache) global._orbiCache = { data: null, ts: 0, token: null, cookie: null, tokenTs: 0 }
         const ORBI_CACHE_MS = 60 * 1000
         const ORBI_SESSION_MS = 20 * 60 * 1000
         const now = Date.now()
@@ -3361,42 +3361,65 @@ function startControlServer() {
           return
         }
 
-        // Refresh session cookie if needed
-        if (!global._orbiCache.cookie || (now - global._orbiCache.cookieTs) > ORBI_SESSION_MS) {
+        // dniEncrypt: Base64(randomChar + Base64(value) + randomChar)
+        const dniEncrypt = s => {
+          const chars = '1234567890abcefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ='
+          const b64 = Buffer.from(s).toString('base64')
+          const t = chars[Math.floor(Math.random() * chars.length)]
+          const r = chars[Math.floor(Math.random() * chars.length)]
+          return Buffer.from(t + b64 + r).toString('base64')
+        }
+        const orbiLogin = async () => {
           const pw = process.env.ORBI_PASSWORD ?? ''
-          const loginResp = await fetch('http://192.168.1.1/dniapi/token', {
+          // Step 1: POST method=login to get ts (used as csrfToken)
+          const tokenResp = await fetch('http://192.168.1.1/dniapi/token', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({password: pw})
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'method=login'
           })
-          const setCookies = loginResp.headers.getSetCookie
-            ? loginResp.headers.getSetCookie()
-            : [loginResp.headers.get('set-cookie') ?? '']
-          const cookieStr = setCookies.map(c => c.split(';')[0]).filter(Boolean).join('; ')
-          if (cookieStr) {
-            global._orbiCache.cookie = cookieStr
-            global._orbiCache.cookieTs = now
+          const tokenData = await tokenResp.json()
+          const csrfToken = tokenData.data?.ts ?? ''
+          // Step 2: POST to /dniapi/login with form-encoded encrypted creds + ts as csrfToken header
+          const u = dniEncrypt('admin')
+          const p = dniEncrypt(pw)
+          const loginResp = await fetch('http://192.168.1.1/dniapi/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'csrfToken': csrfToken
+            },
+            body: `u=${encodeURIComponent(u)}&p=${encodeURIComponent(p)}`
+          })
+          const authCookie = loginResp.headers.get('set-cookie')?.split(';')[0] ?? ''
+          const loginData = await loginResp.json()
+          if (loginData.code === 0 && authCookie) {
+            global._orbiCache.token = loginData.data?.token ?? ''
+            global._orbiCache.cookie = authCookie
+            global._orbiCache.tokenTs = Date.now()
           }
+          return loginData
+        }
+
+        // Refresh session if needed
+        if (!global._orbiCache.cookie || (now - global._orbiCache.tokenTs) > ORBI_SESSION_MS) {
+          await orbiLogin()
         }
 
         let devData = null
         for (let attempt = 0; attempt < 2; attempt++) {
           const devResp = await fetch('http://192.168.1.1/dniapi/attached', {
-            headers: global._orbiCache.cookie ? {'Cookie': global._orbiCache.cookie} : {}
+            headers: {
+              'Authorization': `Bearer ${global._orbiCache.token}`,
+              'Cookie': global._orbiCache.cookie
+            }
           })
           const d = await devResp.json()
           if (d.code === 0) { devData = d; break }
           // session expired — force re-login next attempt
           global._orbiCache.cookie = null
-          global._orbiCache.cookieTs = 0
-          const pw = process.env.ORBI_PASSWORD ?? ''
-          const lr = await fetch('http://192.168.1.1/dniapi/token', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({password: pw})
-          })
-          const sc = lr.headers.getSetCookie ? lr.headers.getSetCookie() : [lr.headers.get('set-cookie') ?? '']
-          const cs = sc.map(c => c.split(';')[0]).filter(Boolean).join('; ')
-          if (cs) { global._orbiCache.cookie = cs; global._orbiCache.cookieTs = Date.now() }
+          global._orbiCache.token = null
+          global._orbiCache.tokenTs = 0
+          await orbiLogin()
         }
 
         if (!devData) throw new Error('Could not authenticate with Orbi')
