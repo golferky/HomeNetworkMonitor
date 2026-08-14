@@ -3347,6 +3347,30 @@ function startControlServer() {
     }
 
     // Orbi attached devices
+    // Event history with filtering
+    if (req.url.startsWith('/api/event-history') && req.method === 'GET') {
+      try {
+        const qs = new URL(req.url, 'http://localhost').searchParams
+        const source = qs.get('source') ?? ''
+        const from   = qs.get('from')   ?? ''
+        const to     = qs.get('to')     ?? ''
+        const limit  = Math.min(parseInt(qs.get('limit') ?? '200', 10), 1000)
+        const history = loadHistory()
+        let events = [...history.events].reverse()
+        if (source) events = events.filter(e => e.source.toLowerCase() === source.toLowerCase())
+        if (from)   events = events.filter(e => e.at >= from)
+        if (to)     events = events.filter(e => e.at <= to + 'T23:59:59Z')
+        events = events.slice(0, limit)
+        const sources = [...new Set([...history.events].map(e => e.source))].sort()
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ events, sources, total: events.length }))
+      } catch(e) {
+        res.writeHead(500, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({error: e.message}))
+      }
+      return
+    }
+
     if (req.url === '/api/orbi-devices' && req.method === 'GET') {
       try {
         if (!global._orbiCache) global._orbiCache = { data: null, ts: 0, token: null, cookie: null, tokenTs: 0 }

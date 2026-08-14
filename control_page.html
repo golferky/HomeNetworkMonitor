@@ -74,6 +74,7 @@ function showTab(name, btn) {
   if (name === 'qnap') loadQnap()
   if (name === 'macmini') loadMacMini()
   if (name === 'network') loadNetwork()
+  if (name === 'events') loadEventHistory()
 }
 
 async function loadMacMini() {
@@ -455,10 +456,101 @@ async function loadContent() {
   document.getElementById('tab-tvs').innerHTML = d.tvs
   document.getElementById('tab-appliances').innerHTML = d.appliances
   document.getElementById('tab-cameras').innerHTML = d.cameras || '<p style="color:var(--muted)">Loading cameras...</p>'
-  document.getElementById('tab-events').innerHTML = d.events || '<p style="color:var(--muted)">No events yet</p>'
+  // Events tab now loads on demand
   // QNAP loads on demand
 }
 loadContent()
+
+// ── Event History ────────────────────────────────────────────────────────────
+async function loadEventHistory() {
+  const el = document.getElementById('tab-events')
+  // Build filter UI if not already present
+  if (!document.getElementById('evt-filter-source')) {
+    el.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <select id="evt-filter-source" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">All Sources</option>
+        </select>
+        <input id="evt-filter-from" type="date" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
+        <input id="evt-filter-to" type="date" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
+        <button onclick="queryEventHistory()" style="background:#7c6af7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">Search</button>
+        <button onclick="clearEventFilters()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">Clear</button>
+        <span id="evt-count" style="color:#64748b;font-size:12px"></span>
+      </div>
+      <div id="evt-results"></div>`
+    // Set default date range: last 7 days
+    const today = new Date().toISOString().slice(0,10)
+    const week = new Date(Date.now() - 7*86400000).toISOString().slice(0,10)
+    document.getElementById('evt-filter-from').value = week
+    document.getElementById('evt-filter-to').value = today
+  }
+  await queryEventHistory()
+}
+
+async function queryEventHistory() {
+  const source = document.getElementById('evt-filter-source')?.value ?? ''
+  const from   = document.getElementById('evt-filter-from')?.value ?? ''
+  const to     = document.getElementById('evt-filter-to')?.value ?? ''
+  const results = document.getElementById('evt-results')
+  results.innerHTML = '<p style="color:var(--muted)">Loading…</p>'
+  const params = new URLSearchParams()
+  if (source) params.set('source', source)
+  if (from)   params.set('from', from)
+  if (to)     params.set('to', to)
+  params.set('limit', '500')
+  try {
+    const r = await fetch('/api/event-history?' + params)
+    const d = await r.json()
+    // Populate source dropdown if needed
+    const sel = document.getElementById('evt-filter-source')
+    if (sel.options.length <= 1) {
+      d.sources.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o) })
+      if (source) sel.value = source
+    }
+    document.getElementById('evt-count').textContent = `${d.total} event${d.total!==1?'s':''}`
+    const priorityColor = p => p==='critical'?'#f87171':p==='important'?'#fbbf24':'#9ca3af'
+    const rows = d.events.map(e => {
+      const t = new Date(e.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})
+      const pri = getEventPriorityClient(e)
+      return `<tr>
+        <td style="color:${priorityColor(pri)};white-space:nowrap">${pri}</td>
+        <td style="color:#64748b;white-space:nowrap">${t}</td>
+        <td style="color:#94a3b8">${e.source}</td>
+        <td>${e.name}</td>
+        <td style="color:#64748b">${e.previousState??''} → ${e.state}</td>
+      </tr>`
+    }).join('')
+    results.innerHTML = rows
+      ? `<table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr>
+            <th style="text-align:left;color:#64748b;padding:4px">Priority</th>
+            <th style="text-align:left;color:#64748b;padding:4px">Time</th>
+            <th style="text-align:left;color:#64748b;padding:4px">Source</th>
+            <th style="text-align:left;color:#64748b;padding:4px">Device</th>
+            <th style="text-align:left;color:#64748b;padding:4px">Change</th>
+          </tr>${rows}</table>`
+      : '<p style="color:var(--muted)">No events found for those filters.</p>'
+  } catch(e) {
+    results.innerHTML = `<p style="color:#f87171">Error: ${e.message}</p>`
+  }
+}
+
+function clearEventFilters() {
+  document.getElementById('evt-filter-source').value = ''
+  const today = new Date().toISOString().slice(0,10)
+  const week = new Date(Date.now() - 7*86400000).toISOString().slice(0,10)
+  document.getElementById('evt-filter-from').value = week
+  document.getElementById('evt-filter-to').value = today
+  queryEventHistory()
+}
+
+function getEventPriorityClient(e) {
+  if (e.source==='Ring' && e.category==='Motion') return 'critical'
+  if (e.category==='Contact') return 'critical'
+  if (e.source==='Ring' && e.category==='Sensor') return 'important'
+  if (e.category==='Sensor') return 'important'
+  return 'normal'
+}
 </script>
 </body>
 </html>
