@@ -1161,10 +1161,12 @@ async function sendIMessage(target, message) {
 }
 
 async function sendEventAlert(events) {
-  // Alert on everything — filter out only pure info-noise (iPhone/network presence flips)
+  // Only send immediate alerts for critical events — lights/audio go to daily digest
   const important = events.filter(event => {
-    // Skip presence events for phones — too noisy
-    if (event.source === 'Network' && event.category === 'Sensor') return false
+    if (event.source === 'Network' && event.category === 'Sensor') return false  // phone presence noise
+    if (event.category === 'Light') return false  // lights → daily digest
+    if (event.source === 'Sonos') return false     // audio → daily digest
+    if (event.source === 'Govee') return false     // govee lights → daily digest
     return true
   })
   if (important.length === 0) return
@@ -1219,6 +1221,58 @@ async function sendEventAlert(events) {
   })
 
   console.log(`SMS fallback sent to ${SMS_TO}`)
+}
+
+async function sendDailyDigest() {
+  try {
+    const history = loadHistory()
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const recent = (history.events || []).filter(e => e.at >= since)
+    if (recent.length === 0) {
+      console.log('[Digest] No events in last 24h, skipping.')
+      return
+    }
+    // Count by source/category
+    const counts = {}
+    for (const e of recent) {
+      const key = e.category === 'Light' ? `${e.source} lights` : `${e.source} ${e.category.toLowerCase()}`
+      counts[key] = (counts[key] ?? 0) + 1
+    }
+    const summary = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `  ${v}x ${k}`)
+      .join('\n')
+    const url = 'http://garyshomemon.duckdns.org:8442'
+    const message = `Home Daily Recap (last 24h):\n${summary}\n\nFull history: ${url}`
+    console.log('[Digest] Sending daily recap:', message)
+    const IMESSAGE_TARGET = process.env.IMESSAGE_TARGET
+    if (IMESSAGE_TARGET) {
+      await sendIMessage(IMESSAGE_TARGET, message)
+      console.log('[Digest] iMessage sent.')
+    } else if (GMAIL_USER && GMAIL_PASS) {
+      const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } })
+      await transporter.sendMail({ from: GMAIL_USER, to: SMS_TO, subject: 'Home Daily Recap', text: message })
+      console.log('[Digest] SMS fallback sent.')
+    }
+  } catch (e) {
+    console.error('[Digest] Error:', e.message)
+  }
+}
+
+function scheduleDailyDigest() {
+  const scheduleNext = () => {
+    const now = new Date()
+    const next = new Date()
+    next.setHours(7, 0, 0, 0)
+    if (next <= now) next.setDate(next.getDate() + 1)
+    const ms = next - now
+    console.log(`[Digest] Next daily recap scheduled at ${next.toLocaleString()} (in ${Math.round(ms/60000)}m)`)
+    setTimeout(async () => {
+      await sendDailyDigest()
+      scheduleNext()
+    }, ms)
+  }
+  scheduleNext()
 }
 
 async function poll(ringApi) {
@@ -4235,6 +4289,7 @@ async function main() {
   if (!RUN_ONCE) startDashboard()
   if (!RUN_ONCE) startControlServer()
   if (!RUN_ONCE) subscribeToRingDeviceChanges(ringApi)
+  if (!RUN_ONCE) scheduleDailyDigest()
 
   do {
     try {

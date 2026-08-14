@@ -9,7 +9,11 @@
   },
   "dependencies": {
     "hap-controller": "^0.10.2",
+    "net-snmp": "^3.26.3",
+    "node-aladdin-connect-garage-door": "^0.1.2",
     "nodemailer": "latest",
-    "ring-client-api": "latest"
+    "ring-client-api": "latest",
+    "ssh2": "^1.17.0",
+    "tuyapi": "^7.7.1"
   }
 }

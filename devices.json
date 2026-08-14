@@ -201,7 +201,8 @@
       "mac": "42:7b:9c:a2:2a:0c",
       "ip": "192.168.1.109",
       "notify": true,
-      "category": "phone"
+      "category": "phone",
+      "minEventIntervalMinutes": 30
     },
     {
       "name": "Amazon Device 2",
@@ -299,7 +300,8 @@
       "mac": "8a:69:35:49:0c:fa",
       "ip": "192.168.1.112",
       "notify": false,
-      "category": "phone"
+      "category": "phone",
+      "minEventIntervalMinutes": 30
     },
     {
       "name": "Ring Mailbox Bridge",

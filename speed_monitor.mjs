@@ -6,6 +6,11 @@ import http from 'http'
 const execAsync = promisify(exec)
 const LOG_FILE = '/Users/garyscudder/epg/speed_log.json'
 
+// Pin to a specific Speedtest.net server to reduce variance from server selection.
+// To find your nearest server IDs, run: speedtest-cli --list | grep -i "ohio\|cincinnati"
+// Set to null to let speedtest-cli auto-select (not recommended — causes chart noise).
+const SPEEDTEST_SERVER = null  // e.g. 10569
+
 const INTERFACES = {
   altafiber: { source: '192.168.1.190',  name: 'AltaFiber' },
   tmobile:   { source: '192.168.12.159', name: 'T-Mobile'  },
@@ -23,8 +28,9 @@ function saveLog(data) {
 async function runSpeedTest(iface) {
   console.log(`Testing ${iface.name} (${iface.source})...`)
   try {
+    const serverFlag = SPEEDTEST_SERVER ? `--server ${SPEEDTEST_SERVER}` : ''
     const { stdout } = await execAsync(
-      `/opt/homebrew/bin/speedtest-cli --source ${iface.source} --simple`,
+      `/opt/homebrew/bin/speedtest-cli --source ${iface.source} ${serverFlag} --simple`,
       { timeout: 120000 }
     )
     const ping     = parseFloat(stdout.match(/Ping:\s+([\d.]+)/)?.[1])
@@ -81,17 +87,17 @@ function startDashboard() {
     const tests = log.tests || []
     const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
 
-    // Calculate stats
+    // Calculate stats — filter out bogus ping values (> 1000ms) to prevent bad averages
     function stats(key) {
       const valid = tests.filter(t => t.results[key]?.download != null)
-      if (!valid.length) return { avg_down: 0, avg_up: 0, avg_ping: 0, min_down: 0, max_down: 0, count: 0 }
+      if (!valid.length) return { avg_down: 0, avg_up: 0, avg_ping: '--', min_down: 0, max_down: 0, count: 0 }
       const downs  = valid.map(t => t.results[key].download)
       const ups    = valid.map(t => t.results[key].upload)
-      const pings  = valid.map(t => t.results[key].ping)
+      const pings  = valid.map(t => t.results[key].ping).filter(p => p != null && p < 1000)
       return {
         avg_down: (downs.reduce((a,b)=>a+b,0)/downs.length).toFixed(1),
         avg_up:   (ups.reduce((a,b)=>a+b,0)/ups.length).toFixed(1),
-        avg_ping: (pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1),
+        avg_ping: pings.length ? (pings.reduce((a,b)=>a+b,0)/pings.length).toFixed(1) : '--',
         min_down: Math.min(...downs).toFixed(1),
         max_down: Math.max(...downs).toFixed(1),
         count: valid.length
@@ -248,7 +254,7 @@ new Chart(document.getElementById('chart'), {
 <div class="chart-wrap">
   <table style="width:100%;font-size:12px;border-collapse:collapse">
     <tr><th style="text-align:left;color:#64748b;padding:4px">Name</th><th style="text-align:left;color:#64748b;padding:4px">MAC</th><th style="text-align:left;color:#64748b;padding:4px">IP</th><th style="text-align:left;color:#64748b;padding:4px">Last Seen</th><th style="text-align:left;color:#64748b;padding:4px">Seen</th></tr>
-    \${altaDeviceRows}
+    ${altaDeviceRows}
   </table>
 </div>
 
@@ -256,7 +262,7 @@ new Chart(document.getElementById('chart'), {
 <div class="chart-wrap">
   <table style="width:100%;font-size:12px;border-collapse:collapse">
     <tr><th style="text-align:left;color:#64748b;padding:4px">Name</th><th style="text-align:left;color:#64748b;padding:4px">MAC</th><th style="text-align:left;color:#64748b;padding:4px">IP</th><th style="text-align:left;color:#64748b;padding:4px">Last Seen</th><th style="text-align:left;color:#64748b;padding:4px">Seen</th></tr>
-    \${tmobDeviceRows}
+    ${tmobDeviceRows}
   </table>
 </div>
 

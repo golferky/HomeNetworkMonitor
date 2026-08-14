@@ -158,6 +158,9 @@ def _fmt_time(t, is_end=False):
         h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
         if is_end and h < 12:
             h += 12   # "2:00" end → 14:00
+        # Start times of 1-5 on a golf course are always PM (2:00 start = 14:00)
+        if not is_end and 0 < h < 6:
+            h += 12
         return f'{h:02d}:{m:02d}'
     except Exception:
         return None
@@ -970,12 +973,86 @@ def create_events():
 
     return jsonify({'created': created, 'skipped': skipped, 'errors': errors})
 
+# ─── Headless / Auto mode ─────────────────────────────────────────────────────
+
+def auto_run():
+    """Headless mode: scan for latest schedule email, parse Gary's events, add to calendar.
+    Called by EmailScreener via: python3 booneschedules_app.py --auto
+    """
+    cfg = load_config()
+    if not cfg.get('yahoo_email') or not cfg.get('yahoo_app_password'):
+        print('[AUTO] Yahoo credentials not set in config.json — aborting.')
+        return
+    if not cfg.get('anthropic_key'):
+        print('[AUTO] Anthropic API key not set in config.json — aborting.')
+        return
+
+    print('[AUTO] Fetching schedule emails from Yahoo…')
+    try:
+        emails = fetch_emails_with_pdfs(cfg, days_back=30)
+    except Exception as e:
+        print(f'[AUTO] Mail error: {e}')
+        return
+
+    if not emails:
+        print('[AUTO] No schedule emails found in last 30 days.')
+        return
+
+    print(f'[AUTO] Found {len(emails)} email(s). Parsing PDFs…')
+    global _pdf_cache
+    _pdf_cache = []
+    for em in emails:
+        for pdf in em['pdfs']:
+            source = f"{em['subject']} › {pdf['filename']}"
+            _pdf_cache.append({'filename': pdf['filename'], 'data': pdf['data'], 'source': source})
+
+    name = cfg.get('your_name', 'Gary Scudder')
+    all_events = []
+    for pdf in _pdf_cache:
+        try:
+            events = parse_employee_events(pdf['data'], cfg['anthropic_key'], name)
+            for ev in events:
+                ev['source'] = pdf['source']
+            all_events.extend(events)
+        except Exception as e:
+            print(f'[AUTO] Parse error ({pdf["filename"]}): {e}')
+
+    if not all_events:
+        print(f'[AUTO] No events found for {name}.')
+        return
+
+    print(f'[AUTO] Found {len(all_events)} event(s) for {name}. Updating Google Calendar…')
+    try:
+        service = google_service()
+    except Exception as e:
+        print(f'[AUTO] Google Calendar error: {e}')
+        return
+
+    tz = cfg.get('timezone', 'America/New_York')
+    created = skipped = 0
+    for ev in all_events:
+        try:
+            if event_exists(service, ev, tz):
+                skipped += 1
+            else:
+                create_event(service, ev, tz)
+                created += 1
+        except Exception as e:
+            print(f'[AUTO] Event error: {e}')
+
+    print(f'[AUTO] Done — {created} created, {skipped} already existed.')
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    import webbrowser
-    print('\n  Mail → Calendar')
-    print('  ───────────────')
-    print('  Open: http://localhost:5000\n')
-    threading.Timer(1.2, lambda: webbrowser.open('http://localhost:5000')).start()
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    import sys
+    if '--auto' in sys.argv:
+        auto_run()
+    else:
+        import webbrowser
+        print('\n  Mail → Calendar')
+        print('  ───────────────')
+        print('  Open: http://localhost:5000\n')
+        threading.Timer(1.2, lambda: webbrowser.open('http://localhost:5000')).start()
+        app.run(host='127.0.0.1', port=5000, debug=False)
