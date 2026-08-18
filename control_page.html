@@ -721,7 +721,6 @@ async function loadHueBrightness() {
       if (state.on !== undefined) applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Hue brightness fetch failed:', e) }
-  updateRoomToggleButtons()
 }
 
 async function hueControl(pid, body) {
@@ -758,7 +757,6 @@ async function loadRingStates() {
       applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Ring states fetch failed:', e) }
-  updateRoomToggleButtons()
 }
 
 async function fetchPowerStates() {
