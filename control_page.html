@@ -49,6 +49,9 @@
     <button class="tab" onclick="showTab('qnap',this)">🖥️ QNAP</button>
     <button class="tab" onclick="showTab('macmini',this)">🍎 Mac Mini</button>
     <button class="tab" onclick="showTab('network',this)">🌐 Network</button>
+    <button class="tab" onclick="showTab('alexa',this)">🔊 Alexa</button>
+    <button class="tab" onclick="showTab('smarthome',this)">🏠 Smart Home</button>
+    <button class="tab" onclick="showTab('apple',this)">🍎 Apple</button>
   </div>
 </div>
 
@@ -62,10 +65,14 @@
 <div id="tab-qnap" class="content"></div>
 <div id="tab-macmini" class="content"></div>
 <div id="tab-network" class="content"></div>
+<div id="tab-alexa" class="content"></div>
+<div id="tab-smarthome" class="content"></div>
+<div id="tab-apple" class="content"></div>
 <div id="status" class="status-bar"></div>
 
 <script>
 function showTab(name, btn) {
+  _currentTab = name
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
   document.querySelectorAll('.content').forEach(c => c.classList.remove('active'))
   document.getElementById('tab-' + name).classList.add('active')
@@ -75,6 +82,9 @@ function showTab(name, btn) {
   if (name === 'macmini') loadMacMini()
   if (name === 'network') loadNetwork()
   if (name === 'events') loadEventHistory()
+  if (name === 'alexa') loadAlexa()
+  if (name === 'smarthome') loadSmartHome()
+  if (name === 'apple') loadApple()
 }
 
 async function loadMacMini() {
@@ -309,11 +319,29 @@ function showStatus(msg) {
 }
 
 let lastHash = null
+let _currentTab = 'security'
+
+function refreshCurrentTab() {
+  const loaders = {
+    qnap: loadQnap, macmini: loadMacMini, network: loadNetwork,
+    events: loadEventHistory, alexa: loadAlexa, smarthome: loadSmartHome,
+    apple: loadApple, cameras: reloadSnapshots
+  }
+  const fn = loaders[_currentTab]
+  if (fn) fn()
+  else {
+    // Static tabs (security, lights, climate, tvs, appliances) — just refresh states
+    fetchPowerStates()
+    loadHueBrightness()
+    loadSensorEvents()
+  }
+}
+
 async function checkHash() {
   try {
     const r = await fetch('/control/state-hash')
     const d = await r.json()
-    if (lastHash && lastHash !== d.hash) location.reload()
+    if (lastHash && lastHash !== d.hash) refreshCurrentTab()
     lastHash = d.hash
   } catch(e) {}
 }
@@ -440,6 +468,892 @@ async function loadNetwork() {
         '</div>' +
         '<div style="font-size:10px;color:#475569;margin-top:8px">Updated: ' + d.ts + '</div>' +
       '</div>'
+  } catch(e) {
+    el.innerHTML = '<p style="color:#f87171">⚠ ' + e.message + '</p>'
+  }
+}
+
+let _alexaDevices = []
+let _alexaSort = { col: 'name', dir: 1 }
+
+function renderAlexaTable() {
+  const sorted = [..._alexaDevices].sort((a, b) => {
+    const col = _alexaSort.col
+    const av = col === 'online' ? (a.online ? 1 : 0) : (a[col] || '').toLowerCase()
+    const bv = col === 'online' ? (b.online ? 1 : 0) : (b[col] || '').toLowerCase()
+    return av < bv ? -_alexaSort.dir : av > bv ? _alexaSort.dir : 0
+  })
+
+  const familyIcon = { 'ECHO': '🔈', 'TABLET': '📱', 'FIRE_TV': '📺', 'KNIGHT': '🔊', 'ECHO_AUTO': '🚗' }
+  const rows = sorted.map(function(dv) {
+    const icon = familyIcon[dv.family] || '🔊'
+    const serial = dv.serial || ''
+    const onlineColor = dv.online ? '#4ade80' : '#64748b'
+    const onlineLabel = dv.online ? '● Online' : '○ Offline'
+    const dndId = 'dnd_' + serial.substring(0,8)
+    return '<tr style="border-bottom:1px solid #1e293b">' +
+      '<td style="padding:8px;color:#e2e8f0;font-weight:600;white-space:nowrap">' + icon + ' ' + (dv.name || '—') + '</td>' +
+      '<td style="padding:8px;color:#94a3b8;font-size:11px;white-space:nowrap">' + (dv.family || '—') + '</td>' +
+      '<td style="padding:8px;color:' + onlineColor + ';font-size:11px;font-weight:600;white-space:nowrap">' + onlineLabel + '</td>' +
+      '<td style="padding:8px;white-space:nowrap">' +
+        '<button onclick="alexaCmd(\'' + serial + '\',\'play\',null)" style="background:#1e40af;border:none;color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;margin-right:4px">▶</button>' +
+        '<button onclick="alexaCmd(\'' + serial + '\',\'pause\',null)" style="background:#475569;border:none;color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px">⏸</button>' +
+      '</td>' +
+      '<td style="padding:8px;white-space:nowrap">' +
+        '<input id="vol_' + serial.substring(0,8) + '" type="range" min="0" max="100" value="50" style="width:80px;vertical-align:middle"> ' +
+        '<button onclick="alexaCmd(\'' + serial + '\',\'volume\',document.getElementById(\'vol_' + serial.substring(0,8) + '\').value)" style="background:#7c3aed;border:none;color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px">Set Vol</button>' +
+      '</td>' +
+      '<td style="padding:8px;white-space:nowrap">' +
+        '<label style="font-size:11px;color:#94a3b8">DND ' +
+        '<input id="' + dndId + '" type="checkbox" onchange="alexaCmd(\'' + serial + '\',\'donotdisturb\',this.checked.toString())" style="margin-left:4px">' +
+        '</label>' +
+      '</td>' +
+    '</tr>'
+  }).join('')
+
+  const th = (label, col) => {
+    const active = _alexaSort.col === col
+    const arrow = active ? (_alexaSort.dir === 1 ? ' ▲' : ' ▼') : ''
+    return '<th onclick="alexaSortBy(\'' + col + '\')" style="text-align:left;padding:6px 8px;color:' + (active ? '#7c6af7' : '#64748b') + ';font-weight:600;cursor:pointer;user-select:none">' + label + arrow + '</th>'
+  }
+
+  document.getElementById('alexa-table-wrap').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+      '<thead><tr style="border-bottom:1px solid #334155">' +
+        th('Device','name') + th('Family','family') + th('Status','online') +
+        '<th style="padding:6px 8px;color:#64748b;font-weight:600">Play/Pause</th>' +
+        '<th style="padding:6px 8px;color:#64748b;font-weight:600">Volume</th>' +
+        '<th style="padding:6px 8px;color:#64748b;font-weight:600">DND</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>'
+}
+
+function alexaSortBy(col) {
+  if (_alexaSort.col === col) _alexaSort.dir *= -1
+  else { _alexaSort.col = col; _alexaSort.dir = 1 }
+  renderAlexaTable()
+}
+
+async function alexaCmd(serial, command, value) {
+  const btn = event && event.target
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5' }
+  try {
+    const r = await fetch('/api/alexa-command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serial, command, value })
+    })
+    const d = await r.json()
+    if (d.error) alert('Error: ' + d.error)
+  } catch(e) { alert('Error: ' + e.message) }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = '1' } }
+}
+
+async function loadAlexa() {
+  const el = document.getElementById('tab-alexa')
+  el.innerHTML = '<p style="color:var(--muted)">Loading Alexa devices… (first load may take ~5s)</p>'
+  try {
+    const r = await fetch('/api/alexa-devices')
+    const d = await r.json()
+    if (d.error) { el.innerHTML = '<p style="color:#f87171">⚠ ' + d.error + '</p>'; return }
+    _alexaDevices = d.devices
+    _alexaSort = { col: 'name', dir: 1 }
+
+    const deviceOptions = '<option value="ALL">All Echos</option>' +
+      d.devices.filter(dv => dv.online).map(dv =>
+        '<option value="' + dv.serial + '">' + dv.name + '</option>'
+      ).join('')
+
+    el.innerHTML =
+      '<div style="padding:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+          '<div style="font-size:13px;font-weight:700;color:#e2e8f0">🔊 Alexa Devices</div>' +
+          '<button onclick="loadAlexa()" style="background:none;border:1px solid #334155;color:#7c6af7;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">↻ Refresh</button>' +
+        '</div>' +
+        '<div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:16px">' +
+          '<div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:8px">📢 Announce / Speak</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+            '<select id="alexa_target" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;padding:4px 8px;font-size:12px">' + deviceOptions + '</select>' +
+            '<input id="alexa_msg" type="text" placeholder="Say something…" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:4px;padding:4px 8px;font-size:12px">' +
+            '<button onclick="alexaCmd(document.getElementById(\'alexa_target\').value,\'speak\',document.getElementById(\'alexa_msg\').value)" style="background:#059669;border:none;color:#fff;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600">Speak</button>' +
+          '</div>' +
+        '</div>' +
+        '<div id="alexa-table-wrap" style="overflow-x:auto"></div>' +
+      '</div>'
+
+    renderAlexaTable()
+  } catch(e) {
+    el.innerHTML = '<p style="color:#f87171">⚠ ' + e.message + '</p>'
+  }
+}
+
+let _shPowerIds = []
+let _shLockIds = []
+const _roomPids = {}  // room name → [{endpointId, pid, name}]
+const _nameToPid = {}  // lowercase device name → pid
+const _hueIdByPid = {}   // pid → Hue light numeric ID (for direct Hue API control)
+const _ringKeyByPid = {} // pid → Ring device name key (for direct Ring API control)
+let _shThermostatIds = []
+let _camBatteryIds = []
+let _sensorIds = []
+
+async function loadSensorEvents() {
+  try {
+    const r = await fetch('/api/ring-sensor-events')
+    const events = await r.json()
+    const now = Date.now()
+    for (const { name, sKey, isMailbox } of _sensorIds) {
+      const stateEl = document.getElementById(sKey + '_state')
+      const timeEl  = document.getElementById(sKey + '_time')
+      const durEl   = document.getElementById(sKey + '_dur')
+      if (!stateEl) continue
+      // Find event by exact or partial name match
+      const nameLower = name.toLowerCase()
+      const key = Object.keys(events).find(k => k.toLowerCase().includes(nameLower) || nameLower.includes(k.toLowerCase()))
+      if (!key) { stateEl.textContent = 'No events'; timeEl.textContent = ''; continue }
+      const ev = events[key]
+      const evTime = new Date(ev.time)
+      const ageSec = Math.floor((now - evTime.getTime()) / 1000)
+      const ageStr = ageSec < 60 ? ageSec + 's ago'
+        : ageSec < 3600 ? Math.floor(ageSec/60) + 'm ago'
+        : ageSec < 86400 ? Math.floor(ageSec/3600) + 'h ago'
+        : Math.floor(ageSec/86400) + 'd ago'
+      const isOpen = (ev.state || '').toLowerCase().includes('open') || (ev.motion === true)
+      const stateLabel = isMailbox
+        ? (isOpen ? '📬 Opened' : '📪 Closed')
+        : (isOpen ? '🟡 Motion' : '⚫ Clear')
+      const color = isOpen ? '#fbbf24' : '#64748b'
+      stateEl.textContent = stateLabel
+      stateEl.style.color = color
+      timeEl.textContent = 'Last: ' + evTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + ' · ' + ageStr
+      if (durEl) durEl.textContent = ev.state ? ('State: ' + ev.state) : ''
+    }
+  } catch(e) { console.warn('Sensor events failed:', e) }
+}
+
+async function loadCameraBatteries() {
+  try {
+    const r = await fetch('/api/ring-camera-batteries')
+    const batteries = await r.json()
+    const normalize = s => s.toLowerCase().replace(/\s*(camera|doorbell|cam|ring)\s*/gi, '').trim()
+    for (const { name, camKey } of _camBatteryIds) {
+      const el = document.getElementById(camKey + '_batt')
+      if (!el) continue
+      const nameLower = name.toLowerCase()
+      const nameNorm = normalize(name)
+      // 1. Exact match  2. Fuzzy contains  3. Normalized match
+      let b = batteries[name]
+      if (!b) {
+        const key = Object.keys(batteries).find(k => {
+          const kl = k.toLowerCase(), kn = normalize(k)
+          return kl.includes(nameLower) || nameLower.includes(kl) || kn === nameNorm || kn.includes(nameNorm) || nameNorm.includes(kn)
+        })
+        if (key) b = batteries[key]
+      }
+      if (!b) { el.textContent = '🔌 Wired'; continue }
+      const pct = b.battery2 != null ? Math.min(b.battery, b.battery2) : b.battery
+      const color = pct > 50 ? '#4ade80' : pct > 20 ? '#fbbf24' : '#f87171'
+      const label = b.battery2 != null ? `${b.battery}% / ${b.battery2}%` : `${b.battery}%`
+      el.innerHTML = '<span style="color:' + color + '">🔋 ' + label + '</span>'
+    }
+  } catch(e) { console.warn('Camera battery fetch failed:', e) }
+}
+
+function applyPowerState(pid, isOn) {
+  const btn = document.getElementById(pid + '_toggle')
+  if (!btn) return
+  // Green = off (safe), Red = on (active)
+  btn.textContent = isOn ? 'On' : 'Off'
+  btn.style.background  = isOn ? '#7f1d1d' : '#166534'
+  btn.style.borderColor = isOn ? '#f87171' : '#4ade80'
+  btn.style.color = '#fff'
+  btn.dataset.state = isOn ? 'on' : 'off'
+  const pctEl = document.getElementById(pid + '_pct')
+  if (pctEl && !isOn) pctEl.textContent = ''
+  if (!isOn) document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
+}
+
+function applyLockState(pid, isLocked) {
+  const btn = document.getElementById(pid + '_toggle')
+  if (!btn) return
+  btn.textContent = isLocked ? '🔒 Locked' : '🔓 Unlocked'
+  btn.style.background  = isLocked ? '#166534' : '#7f1d1d'
+  btn.style.borderColor = isLocked ? '#4ade80' : '#f87171'
+  btn.style.color = isLocked ? '#fff' : '#fca5a5'
+  btn.dataset.state = isLocked ? 'locked' : 'unlocked'
+}
+
+function applyBrightness(pid, pct) {
+  try { localStorage.setItem('bri_' + pid, pct) } catch(e) {}
+  const slider = document.getElementById(pid + '_slider')
+  const pctEl = document.getElementById(pid + '_pct')
+  if (slider) slider.value = pct
+  if (pctEl) pctEl.textContent = pct + '%'
+}
+
+function loadSavedBrightness(pid) {
+  try {
+    const v = localStorage.getItem('bri_' + pid)
+    if (v !== null) applyBrightness(pid, parseInt(v))
+  } catch(e) {}
+}
+
+const HUE_NAME_ALIASES = {
+  'floodlight': 'downstairs patio door',
+  'left lamp':  "gary's lamp",
+  'right lamp': "pam's lamp"
+}
+
+async function loadHueBrightness() {
+  try {
+    const r = await fetch('/api/hue-light-states')
+    const hue = await r.json()
+    if (hue.error) return
+    for (const [hueName, state] of Object.entries(hue)) {
+      const lookupName = HUE_NAME_ALIASES[hueName] || hueName
+      const pid = _nameToPid[lookupName]
+      if (!pid) continue
+      if (state.id) _hueIdByPid[pid] = state.id  // cache Hue light ID for direct control
+      applyBrightness(pid, state.bri)
+      if (state.on !== undefined) applyPowerState(pid, state.on)
+    }
+  } catch(e) { console.warn('Hue brightness fetch failed:', e) }
+}
+
+async function hueControl(pid, body) {
+  const lightId = _hueIdByPid[pid]
+  if (!lightId) return false  // not a Hue light
+  await fetch('/api/hue-control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lightId, ...body })
+  })
+  return true
+}
+
+async function ringControl(pid, on) {
+  const deviceKey = _ringKeyByPid[pid]
+  if (!deviceKey) return false  // not a Ring light
+  await fetch('/control/ring', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceKey, on })
+  })
+  return true
+}
+
+async function loadRingStates() {
+  try {
+    const r = await fetch('/api/ring-light-states')
+    const lights = await r.json()
+    if (lights.error) return
+    for (const [ringKey, state] of Object.entries(lights)) {
+      const pid = _nameToPid[ringKey] || _nameToPid[state.name?.toLowerCase()]
+      if (!pid) continue
+      _ringKeyByPid[pid] = ringKey  // cache for control
+      applyPowerState(pid, state.on)
+    }
+  } catch(e) { console.warn('Ring states fetch failed:', e) }
+}
+
+async function fetchPowerStates() {
+  const allIds = [..._shPowerIds, ..._shLockIds]
+  if (!allIds.length) return
+  try {
+    const r = await fetch('/api/alexa-power-states', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpointIds: allIds.map(x => x.endpointId) })
+    })
+    const d = await r.json()
+    for (const { endpointId, pid } of _shPowerIds) {
+      if (endpointId in (d.states || {})) applyPowerState(pid, d.states[endpointId])
+    }
+    for (const { endpointId, pid } of _shLockIds) {
+      if (endpointId in (d.lockStates || {})) applyLockState(pid, d.lockStates[endpointId])
+    }
+    for (const { endpointId, pid } of _shPowerIds) {
+      if (endpointId in (d.brightnessStates || {})) applyBrightness(pid, d.brightnessStates[endpointId])
+    }
+  } catch(e) { console.warn('Power state fetch failed:', e.message) }
+}
+
+async function shToggle(endpointId, pid) {
+  const btn = document.getElementById(pid + '_toggle')
+  const isOn = btn?.dataset.state === 'on'
+  applyPowerState(pid, !isOn) // optimistic
+  // Prefer direct Hue → Ring → Alexa
+  const usedHue = await hueControl(pid, { on: !isOn })
+  const usedRing = !usedHue && await ringControl(pid, !isOn)
+  if (!usedHue && !usedRing) {
+    const devInfo = _shPowerIds.find(d => d.endpointId === endpointId)
+    await shControl(endpointId, isOn ? 'TurnOff' : 'TurnOn', null, devInfo?.name)
+  }
+  setTimeout(loadHueBrightness, 1200)
+  setTimeout(loadRingStates, 1200)
+  if (!usedHue && !usedRing) setTimeout(fetchPowerStates, 1500)
+}
+
+async function roomOff(room) {
+  const devs = _roomPids[room] || []
+  for (const { endpointId, pid } of devs) {
+    const btn = document.getElementById(pid + '_toggle')
+    if (btn?.dataset.state === 'on') await shToggle(endpointId, pid)
+  }
+}
+
+async function lockToggle(endpointId, pid) {
+  const btn = document.getElementById(pid + '_toggle')
+  const isLocked = btn?.dataset.state !== 'unlocked'
+  applyLockState(pid, !isLocked) // optimistic
+  await shControl(endpointId, isLocked ? 'Unlock' : 'Lock', null)
+  setTimeout(fetchPowerStates, 2000)
+}
+
+const _tccMode = {}      // tid → current mode
+const _tccSetpoint = {}  // tid → current displayed setpoint
+const _tccSetTimer = {}  // tid → debounce timer
+
+function tccAdjust(tid, delta) {
+  const valEl = document.getElementById(tid + '_val')
+  if (!valEl) return
+  const current = parseInt(valEl.textContent) || 72
+  const next = Math.min(85, Math.max(60, current + delta))
+  _tccSetpoint[tid] = next
+  valEl.textContent = next + '°'
+  // Auto-set after 1.5s of no presses
+  clearTimeout(_tccSetTimer[tid])
+  _tccSetTimer[tid] = setTimeout(() => tccSetTemp(tid), 1500)
+}
+
+async function loadThermostatState(endpointId, tid) {
+  try {
+    const r = await fetch('/api/tcc-thermostat')
+    const p = await r.json()
+    if (p.error) throw new Error(p.error)
+    const modeColors = { HEAT: '#fb923c', COOL: '#93c5fd', AUTO: '#a78bfa', OFF: '#6b7280', EMHEAT: '#f97316' }
+    // Current temp
+    if (p.currentTemp != null) document.getElementById(tid + '_curr').textContent = Math.round(p.currentTemp) + '°'
+    // Setpoint — show heat setpoint when heating/auto, cool when cooling
+    const setpoint = (p.mode === 'COOL') ? p.coolSetpoint : p.heatSetpoint
+    if (setpoint != null) {
+      const t = Math.round(setpoint)
+      _tccSetpoint[tid] = t
+      const valEl = document.getElementById(tid + '_val')
+      if (valEl) valEl.textContent = t + '°'
+    }
+    // Mode + operating status
+    _tccMode[tid] = p.mode
+    const statusEl = document.getElementById(tid + '_status')
+    if (p.mode) {
+      const opLower = (p.operating || '').toLowerCase()
+      let opLabel = ''
+      if (opLower === 'cooling' || opLower === '2') opLabel = '❄️ Cooling'
+      else if (opLower === 'heating' || opLower === '1') opLabel = '🔥 Heating'
+      else if (opLower === 'fan' || opLower === '3') opLabel = '💨 Fan'
+      statusEl.textContent = opLabel || p.mode
+      statusEl.style.color = opLabel ? '#fff' : (modeColors[p.mode] || '#64748b')
+      for (const m of ['HEAT','COOL','AUTO','OFF']) {
+        const btn = document.getElementById(tid + '_m_' + m)
+        if (btn) btn.style.borderColor = m === p.mode ? (modeColors[m] || '#7c6af7') : 'transparent'
+      }
+    } else {
+      statusEl.textContent = 'State unavailable'
+    }
+    // Fan mode buttons
+    const fanOn = document.getElementById(tid + '_fan_on')
+    const fanAuto = document.getElementById(tid + '_fan_auto')
+    if (fanOn && fanAuto) {
+      const isOn = (p.fanMode || '').toLowerCase() === 'on'
+      fanOn.style.borderColor = isOn ? '#38bdf8' : 'transparent'
+      fanAuto.style.borderColor = !isOn ? '#38bdf8' : 'transparent'
+    }
+  } catch(e) {
+    const el = document.getElementById(tid + '_status')
+    if (el) el.textContent = 'Error: ' + e.message
+  }
+}
+
+async function tccSetTemp(tid) {
+  const valEl = document.getElementById(tid + '_val')
+  if (!valEl) return
+  const temp = _tccSetpoint[tid] || parseInt(valEl.textContent) || 72
+  const mode = _tccMode[tid] || 'HEAT'
+  const action = mode === 'COOL' ? 'setCool' : 'setHeat'
+  try {
+    await fetch('/api/tcc-thermostat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, value: temp }) })
+    setTimeout(() => loadThermostatState(null, tid), 2000)
+  } catch(e) { console.error('tccSetTemp error', e) }
+}
+
+async function tccSetFan(fanMode, tid) {
+  try {
+    await fetch('/api/tcc-thermostat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'setFan', value: fanMode }) })
+    const fanOn = document.getElementById(tid + '_fan_on')
+    const fanAuto = document.getElementById(tid + '_fan_auto')
+    if (fanOn) fanOn.style.borderColor = fanMode === 'on' ? '#38bdf8' : 'transparent'
+    if (fanAuto) fanAuto.style.borderColor = fanMode === 'auto' ? '#38bdf8' : 'transparent'
+    setTimeout(() => loadThermostatState(null, tid), 2000)
+  } catch(e) { console.error('tccSetFan error', e) }
+}
+
+async function tccSetMode(mode, tid) {
+  try {
+    await fetch('/api/tcc-thermostat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'setMode', value: mode }) })
+    _tccMode[tid] = mode
+    const modeColors = { HEAT: '#fb923c', COOL: '#93c5fd', AUTO: '#a78bfa', OFF: '#6b7280' }
+    for (const m of ['HEAT','COOL','AUTO','OFF']) {
+      const btn = document.getElementById(tid + '_m_' + m)
+      if (btn) btn.style.borderColor = m === mode ? (modeColors[m] || '#7c6af7') : 'transparent'
+    }
+    setTimeout(() => loadThermostatState(null, tid), 3000)
+  } catch(e) { console.error('tccSetMode error', e) }
+}
+
+async function shControl(endpointId, action, value, deviceName, colorName) {
+  try {
+    const r = await fetch('/api/alexa-smarthome-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpointId, action, value, deviceName, colorName })
+    })
+    const d = await r.json()
+    if (d.error) alert('Error: ' + d.error)
+    if (d.errors?.length) console.warn('[alexa errors]', d.errors)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+async function setBrightness(pid, endpointId, pct) {
+  const usedHue = await hueControl(pid, { bri: pct })
+  if (!usedHue) await shControl(endpointId, 'SetBrightness', pct)
+}
+
+async function setColor(btn, colorEid, powerEid, pid, h, s, b, colorName) {
+  // Clear previous selection for this device, mark new one
+  document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
+  btn.style.borderColor = '#fff'
+  btn.style.boxShadow = '0 0 0 3px #fff'
+  applyPowerState(pid, true)  // optimistic: light on
+  // Prefer direct Hue control (hue in 0-360, sat in 0-1, bri in 0-1 — server converts)
+  const usedHue = await hueControl(pid, { on: true, hue: h, sat: s, bri: Math.round(b * 100) })
+  if (!usedHue) {
+    const devInfo = _shPowerIds.find(d => d.endpointId === powerEid)
+    await shControl(colorEid, 'SetColor', { hue: h, saturation: s, brightness: b }, devInfo?.name, colorName)
+  }
+}
+
+// Device display name overrides (Alexa name → friendly name)
+const DEVICE_NAME_OVERRIDES = {
+  'left lamp': "Gary's lamp",
+  'right lamp': "Pam's lamp"
+}
+// Room overrides for devices whose names don't contain a room keyword
+const DEVICE_ROOM_OVERRIDES = {
+  "gary's lamp":          'Living Room',
+  "pam's lamp":           'Living Room',
+  'govee smart led desk': 'Basement',
+  'string lights 6':      'Deck',
+  'string lights 7':      'Deck',
+  'floor lamp basic left':  'Basement',
+  'floor lamp basic right': 'Basement',
+  'downstairs patio door':  'Patio'
+}
+
+function extractRoom(name) {
+  const lower = name.toLowerCase()
+  if (DEVICE_ROOM_OVERRIDES[lower]) return DEVICE_ROOM_OVERRIDES[lower]
+  const ROOMS = [
+    // Multi-word first (longer matches take priority)
+    'main bedroom','master bedroom','guest bedroom','kids bedroom','boys bedroom','girls bedroom',
+    'living room','family room','great room','sitting room','sun room','sunroom',
+    'dining room','laundry room','utility room','mud room','mudroom','play room','playroom',
+    'game room','media room','theater room','home office',
+    'backyard lights','backyard','front yard',
+    // Single-word rooms
+    'downstairs','upstairs','basement','attic',
+    'bedroom','bathroom','kitchen','office','garage',
+    'hallway','entryway','foyer','porch','patio',
+    'den','study','gym','nursery','pantry','closet','stairway','stairs'
+  ]
+  for (const room of ROOMS) {
+    if (lower.includes(room)) return room.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+  }
+  return 'Other'
+}
+
+function groupByRoom(devs) {
+  const rooms = {}
+  for (const dev of devs) {
+    const room = extractRoom(dev.name)
+    if (!rooms[room]) rooms[room] = []
+    rooms[room].push(dev)
+  }
+  // Sort: named rooms first alphabetically, 'Other' last
+  // Within each room: device whose name matches the room name comes first, then alphabetical
+  return Object.entries(rooms).sort(([a],[b]) => {
+    if (a === 'Other') return 1
+    if (b === 'Other') return -1
+    return a.localeCompare(b)
+  }).map(([room, roomDevs]) => {
+    const roomLower = room.toLowerCase()
+    roomDevs.sort((a, b) => {
+      const aMatch = a.name.toLowerCase() === roomLower ? 0 : 1
+      const bMatch = b.name.toLowerCase() === roomLower ? 0 : 1
+      if (aMatch !== bMatch) return aMatch - bMatch
+      return a.name.localeCompare(b.name)
+    })
+    return [room, roomDevs]
+  })
+}
+
+function toggleShSection(secId) {
+  const el = document.getElementById(secId)
+  const arrow = document.getElementById(secId + '_arrow')
+  if (!el) return
+  const collapsed = el.style.display === 'none'
+  el.style.display = collapsed ? 'flex' : 'none'
+  if (arrow) arrow.textContent = collapsed ? '▼' : '▶'
+}
+
+async function loadSmartHome() {
+  const el = document.getElementById('tab-smarthome')
+  el.innerHTML = '<p style="color:var(--muted)">Loading smart home devices…</p>'
+  try {
+    const r = await fetch('/api/alexa-smarthome')
+    const d = await r.json()
+    if (d.error) { el.innerHTML = '<p style="color:#f87171">⚠ ' + d.error + '</p>'; return }
+
+    _shPowerIds = []
+    _shThermostatIds = []
+    Object.keys(_roomPids).forEach(k => delete _roomPids[k])
+    _camBatteryIds = []
+    _sensorIds = []
+    const catMeta = {
+      LIGHT:         { icon: '💡', label: 'Lights' },
+      SCENE_TRIGGER: { icon: '🎬', label: 'Scenes' },
+      SMARTPLUG:     { icon: '🔌', label: 'Plugs' },
+      THERMOSTAT:    { icon: '🌡️', label: 'Thermostat' },
+      CAMERA:        { icon: '📷', label: 'Cameras' },
+      SMARTLOCK:     { icon: '🔒', label: 'Locks' },
+      MOTION_SENSOR: { icon: '👁️', label: 'Sensors' },
+      GARAGE_DOOR:   { icon: '🏠', label: 'Garage' },
+      TV:            { icon: '📺', label: 'TVs' },
+      OTHER:         { icon: '📦', label: 'Other' }
+    }
+
+    // Group by category, deduplicating by name within each category
+    const groups = {}
+    for (const dev of d.devices) {
+      // Apply friendly name overrides
+      const overrideName = DEVICE_NAME_OVERRIDES[dev.name.toLowerCase()]
+      const namedDev = overrideName ? { ...dev, name: overrideName } : dev
+      if (!groups[namedDev.category]) groups[namedDev.category] = []
+      if (!groups[namedDev.category].some(x => x.name === namedDev.name)) {
+        groups[namedDev.category].push(namedDev)
+      }
+    }
+
+    const ORDER = ['LIGHT','SMARTPLUG','SCENE_TRIGGER','THERMOSTAT','SMARTLOCK','GARAGE_DOOR','MOTION_SENSOR','CAMERA','TV','OTHER']
+
+    let html = '<div style="padding:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+        '<div style="font-size:13px;font-weight:700;color:#e2e8f0">🏠 Alexa Smart Home</div>' +
+        '<button onclick="loadSmartHome()" style="background:none;border:1px solid #334155;color:#7c6af7;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">↻ Refresh</button>' +
+      '</div>'
+
+    for (const cat of ORDER) {
+      const devs = groups[cat]
+      if (!devs || !devs.length) continue
+      const meta = catMeta[cat] || { icon: '📦', label: cat }
+
+      const secId = 'shsec_' + cat
+      html += '<div style="margin-bottom:20px">' +
+        '<div onclick="toggleShSection(\'' + secId + '\')" style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none">' +
+          '<span id="' + secId + '_arrow" style="font-size:10px">▼</span>' +
+          meta.icon + ' ' + meta.label + ' <span style="font-weight:400;color:#475569">(' + devs.length + ')</span>' +
+        '</div>' +
+        '<div id="' + secId + '" style="display:flex;flex-wrap:wrap;gap:8px">'
+
+      // Hue name → Alexa name aliases for brightness matching
+      const HUE_ALIASES = {
+        'floodlight': 'downstairs patio door'
+      }
+
+      // Remove devices whose name is a prefix of another device (e.g. hide "Office" when "Office A19 Smart Bulb" exists)
+      function dedupByPrefix(list) {
+        // Remove longer-named device when a shorter prefix device exists
+        // e.g. keep "Office", drop "Office A19 Smart Bulb"
+        const names = list.map(d => d.name.toLowerCase())
+        return list.filter(d => !names.some(other => other !== d.name.toLowerCase() && d.name.toLowerCase().startsWith(other + ' ')))
+      }
+
+      // Merge "X color" into "X" for lights — one combined card
+      function mergeColorVariants(list) {
+        const colorIdx = {}
+        list.forEach((d, i) => { if (d.name.toLowerCase().endsWith(' color')) colorIdx[d.name.slice(0,-6).trim().toLowerCase()] = i })
+        return list
+          .filter(d => !d.name.toLowerCase().endsWith(' color'))
+          .map(d => {
+            const ci = colorIdx[d.name.toLowerCase()]
+            if (ci !== undefined) {
+              const cd = list[ci]
+              return { ...d, colorEndpointId: cd.endpointId, canColor: true, canDim: d.canDim || cd.canDim }
+            }
+            return d
+          })
+      }
+
+      // For lights and scenes, wrap in room groups
+      const useRooms = cat === 'LIGHT' || cat === 'SCENE_TRIGGER'
+      const mergedDevs = cat === 'LIGHT' ? dedupByPrefix(mergeColorVariants(devs)) : devs
+      const roomGroups = useRooms ? groupByRoom(mergedDevs) : [['', mergedDevs]]
+
+      for (const [room, roomDevs] of roomGroups) {
+        if (useRooms && room) {
+          if (!_roomPids[room]) _roomPids[room] = []
+          html += '<div style="width:100%;display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;padding-bottom:3px;border-bottom:1px solid #1e293b">' +
+            '<span style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em">' + room + '</span>' +
+            (roomDevs.length > 1 ? '<button onclick="roomOff(\'' + room.replace(/'/g,"\\'") + '\')" style="font-size:9px;padding:2px 6px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:3px;cursor:pointer">All Off</button>' : '') +
+            '</div>'
+        }
+        for (const dev of roomDevs) {
+        const eid = dev.endpointId.replace(/[^a-z0-9]/gi, '_')
+        if (cat === 'SCENE_TRIGGER') {
+          html += '<button onclick="shControl(\'' + dev.endpointId + '\',\'Activate\',null)" ' +
+            'style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;transition:border-color .15s" ' +
+            'onmouseover="this.style.borderColor=\'#7c6af7\'" onmouseout="this.style.borderColor=\'#334155\'">' +
+            '▶ ' + dev.name + '</button>'
+        } else if (cat === 'LIGHT' || cat === 'SMARTPLUG') {
+          const pid = 'pw_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          _shPowerIds.push({ endpointId: dev.endpointId, pid, name: dev.name })
+          if (room) { if (!_roomPids[room]) _roomPids[room] = []; _roomPids[room].push({ endpointId: dev.endpointId, pid, name: dev.name }) }
+          _nameToPid[dev.name.toLowerCase()] = pid
+          if (dev.colorEndpointId) _nameToPid[(dev.name + ' color').toLowerCase()] = pid
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:160px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">' +
+              '<span style="font-size:12px;color:#e2e8f0;font-weight:600">' + meta.icon + ' ' + dev.name + '</span>' +
+              (dev.canDim ? '<span id="' + pid + '_pct" style="font-size:10px;color:#64748b"></span>' : '') +
+            '</div>' +
+            '<button id="' + pid + '_toggle" onclick="shToggle(\'' + dev.endpointId + '\',\'' + pid + '\')" data-state="off" ' +
+              'style="width:100%;background:#166534;border:2px solid #4ade80;color:#fff;border-radius:4px;padding:5px;cursor:pointer;font-size:11px">Off</button>' +
+            (dev.canDim ? '<input id="' + pid + '_slider" type="range" min="0" max="100" value="100" ' +
+              'oninput="document.getElementById(\'' + pid + '_pct\').textContent=this.value+\'%\'" ' +
+              'onchange="applyBrightness(\'' + pid + '\',parseInt(this.value));setBrightness(\'' + pid + '\',\'' + dev.endpointId + '\',parseInt(this.value))" ' +
+              'style="width:100%;margin-top:6px">' : '') +
+            (dev.canColor ? ('<div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap">' +
+              [['#fff9e6','Warm','30,0.15,1'],['#ffffff','White','0,0,1'],['#ff4444','Red','0,1,1'],
+               ['#ff8c00','Orange','30,1,1'],['#ffe066','Yellow','60,1,1'],['#44dd44','Green','120,1,1'],
+               ['#4488ff','Blue','240,1,1'],['#aa44ff','Purple','270,1,1']]
+              .map(([color, label, hsb]) => {
+                const [h,s,b] = hsb.split(',')
+                const ceid = dev.colorEndpointId || dev.endpointId
+                const peid = dev.endpointId
+                const ppid = pid
+                return '<button title="' + label + '" data-pid-color="' + ppid + '" onclick="setColor(this,\'' + ceid + '\',\'' + peid + '\',\'' + ppid + '\',' + h + ',' + s + ',' + b + ',\'' + label + '\')" ' +
+                  'style="width:22px;height:22px;border-radius:50%;background:' + color + ';border:2px solid #334155;cursor:pointer;padding:0" ' +
+                  'onmouseover="this.style.borderColor=\'#fff\'" onmouseout="this.style.borderColor=\'#334155\'"></button>'
+              }).join('') +
+            '</div>') : '') +
+          '</div>'
+        } else if (cat === 'THERMOSTAT') {
+          const tid = 'tstat_' + dev.endpointId.replace(/[^a-z0-9]/gi,'_').substring(0,12)
+          const eid = dev.endpointId
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;min-width:260px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+              '<span style="font-size:12px;color:#e2e8f0;font-weight:600">🌡️ ' + dev.name + '</span>' +
+              '<span id="' + tid + '_status" style="font-size:11px;color:#64748b">Loading…</span>' +
+            '</div>' +
+            // Current temp + target
+            '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:10px">' +
+              '<div style="text-align:center">' +
+                '<div style="font-size:10px;color:#64748b;margin-bottom:2px">Current</div>' +
+                '<div id="' + tid + '_curr" style="font-size:24px;font-weight:700;color:#94a3b8">—°</div>' +
+              '</div>' +
+              '<div style="color:#334155;font-size:18px">→</div>' +
+            // Up/Down setpoint controls
+            '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">' +
+              '<button onclick="tccAdjust(\'' + tid + '\',-1)" ' +
+                'style="background:#1e293b;border:1px solid #475569;color:#93c5fd;border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;line-height:1">▼</button>' +
+              '<div style="text-align:center;min-width:60px">' +
+                '<div style="font-size:10px;color:#64748b;margin-bottom:2px">Set to</div>' +
+                '<div id="' + tid + '_val" style="font-size:22px;font-weight:700;color:#fb923c">—°</div>' +
+              '</div>' +
+              '<button onclick="tccAdjust(\'' + tid + '\',1)" ' +
+                'style="background:#1e293b;border:1px solid #475569;color:#fb923c;border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;line-height:1">▲</button>' +
+            '</div>' +
+            // Mode buttons
+            '<div style="display:flex;gap:5px;margin-bottom:8px">' +
+              '<button id="' + tid + '_m_HEAT" onclick="tccSetMode(\'HEAT\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#7f1d1d;border:2px solid transparent;color:#fca5a5;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">🔥 Heat</button>' +
+              '<button id="' + tid + '_m_COOL" onclick="tccSetMode(\'COOL\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#1e3a5f;border:2px solid transparent;color:#93c5fd;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">❄️ Cool</button>' +
+              '<button id="' + tid + '_m_AUTO" onclick="tccSetMode(\'AUTO\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#374151;border:2px solid transparent;color:#d1d5db;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">⚡ Auto</button>' +
+              '<button id="' + tid + '_m_OFF" onclick="tccSetMode(\'OFF\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#1f2937;border:2px solid transparent;color:#6b7280;border-radius:4px;padding:5px;cursor:pointer;font-size:11px">Off</button>' +
+            '</div>' +
+            // Fan buttons
+            '<div style="display:flex;align-items:center;gap:6px">' +
+              '<span style="font-size:10px;color:#64748b;white-space:nowrap">💨 Fan:</span>' +
+              '<button id="' + tid + '_fan_on" onclick="tccSetFan(\'on\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#0c2a3a;border:2px solid transparent;color:#38bdf8;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;font-weight:600">On</button>' +
+              '<button id="' + tid + '_fan_auto" onclick="tccSetFan(\'auto\',\'' + tid + '\')" ' +
+                'style="flex:1;background:#1e293b;border:2px solid transparent;color:#94a3b8;border-radius:4px;padding:4px;cursor:pointer;font-size:11px">Auto</button>' +
+            '</div>' +
+          '</div>'
+          _shThermostatIds.push({ endpointId: eid, tid })
+        } else if (cat === 'CAMERA') {
+          const snapUrl = '/snapshot/' + encodeURIComponent(dev.name) + '?t=' + Date.now()
+          const camKey = 'cam_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;overflow:hidden;min-width:200px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid #0f172a">' +
+              '<span style="font-size:11px;color:#94a3b8;font-weight:600">📷 ' + dev.name + '</span>' +
+              '<span id="' + camKey + '_batt" style="font-size:10px;color:#64748b"></span>' +
+            '</div>' +
+            '<img src="' + snapUrl + '" style="width:100%;display:block;cursor:pointer" ' +
+              'onclick="this.src=\'/snapshot/' + encodeURIComponent(dev.name) + '?t=\'+Date.now()" ' +
+              'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'" ' +
+              'title="Click to refresh">' +
+            '<div style="display:none;padding:16px;text-align:center;color:#475569;font-size:11px">No snapshot available</div>' +
+          '</div>'
+          _camBatteryIds.push({ name: dev.name, camKey })
+        } else if (cat === 'SMARTLOCK') {
+          const lpid = 'lock_' + dev.endpointId.replace(/[^a-z0-9]/gi,'_').toLowerCase().substring(0,24)
+          _shLockIds.push({ endpointId: dev.endpointId, pid: lpid })
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:160px">' +
+            '<div style="font-size:12px;color:#e2e8f0;font-weight:600;margin-bottom:8px">🔒 ' + dev.name + '</div>' +
+            '<button id="' + lpid + '_toggle" onclick="lockToggle(\'' + dev.endpointId + '\',\'' + lpid + '\')" data-state="locked" ' +
+              'style="width:100%;background:#166534;border:2px solid #4ade80;color:#fff;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">🔒 Locked</button>' +
+          '</div>'
+        } else if (cat === 'GARAGE_DOOR') {
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:160px">' +
+            '<div style="font-size:12px;color:#e2e8f0;font-weight:600;margin-bottom:8px">🏠 ' + dev.name + '</div>' +
+            '<div style="display:flex;gap:6px">' +
+              '<button onclick="shControl(\'' + dev.endpointId + '\',\'Open\',null)" ' +
+                'style="flex:1;background:#1e3a5f;border:none;color:#93c5fd;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">⬆ Open</button>' +
+              '<button onclick="shControl(\'' + dev.endpointId + '\',\'Close\',null)" ' +
+                'style="flex:1;background:#374151;border:none;color:#d1d5db;border-radius:4px;padding:5px;cursor:pointer;font-size:11px;font-weight:600">⬇ Close</button>' +
+            '</div>' +
+          '</div>'
+        } else if (cat === 'MOTION_SENSOR') {
+          const sKey = 'sen_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          const isMailbox = dev.name.toLowerCase().includes('mail')
+          const icon = isMailbox ? '📬' : '👁️'
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:180px">' +
+            '<div style="font-size:12px;color:#e2e8f0;font-weight:600;margin-bottom:6px">' + icon + ' ' + dev.name + '</div>' +
+            '<div id="' + sKey + '_state" style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:4px">—</div>' +
+            '<div id="' + sKey + '_time" style="font-size:10px;color:#475569">Loading…</div>' +
+            '<div id="' + sKey + '_dur" style="font-size:10px;color:#475569"></div>' +
+          '</div>'
+          _sensorIds.push({ name: dev.name, sKey, isMailbox })
+        } else if (cat === 'TV') {
+          const tpid = 'tv_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          _shPowerIds.push({ endpointId: dev.endpointId, pid: tpid })
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:180px">' +
+            '<div style="font-size:13px;color:#e2e8f0;font-weight:700;margin-bottom:8px">📺 ' + dev.name + '</div>' +
+            '<button id="' + tpid + '_toggle" onclick="shToggle(\'' + dev.endpointId + '\',\'' + tpid + '\')" data-state="off" ' +
+              'style="width:100%;background:#166534;border:2px solid #4ade80;color:#fff;border-radius:4px;padding:5px;cursor:pointer;font-size:11px">Off</button>' +
+          '</div>'
+        } else {
+          // Generic toggle card
+          const gpid = 'gen_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          _shPowerIds.push({ endpointId: dev.endpointId, pid: gpid })
+          html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:160px">' +
+            '<div style="font-size:12px;color:#e2e8f0;font-weight:600;margin-bottom:8px">' + meta.icon + ' ' + dev.name + '</div>' +
+            '<button id="' + gpid + '_toggle" onclick="shToggle(\'' + dev.endpointId + '\',\'' + gpid + '\')" data-state="off" ' +
+              'style="width:100%;background:#166534;border:2px solid #4ade80;color:#fff;border-radius:4px;padding:5px;cursor:pointer;font-size:11px">Off</button>' +
+          '</div>'
+        }
+        } // end for dev of roomDevs
+      } // end for roomGroups
+      html += '</div></div>'
+    }
+
+    html += '</div>'
+    el.innerHTML = html
+    setTimeout(() => {
+      for (const { pid } of _shPowerIds) loadSavedBrightness(pid)
+      loadHueBrightness()
+      loadRingStates()
+      fetchPowerStates()
+      for (const { endpointId, tid } of _shThermostatIds) loadThermostatState(endpointId, tid)
+      loadCameraBatteries()
+      loadSensorEvents()
+    }, 200)
+  } catch(e) {
+    el.innerHTML = '<p style="color:#f87171">⚠ ' + e.message + '</p>'
+  }
+}
+
+async function loadApple() {
+  const el = document.getElementById('tab-apple')
+  el.innerHTML = '<p style="color:var(--muted)">Loading Apple devices…</p>'
+  try {
+    const r = await fetch('/api/device-battery')
+    const d = await r.json()
+    const devices = Object.entries(d.devices || {})
+
+    const deviceIcon = (name) => {
+      name = name.toLowerCase()
+      if (name.includes('watch')) return '⌚'
+      if (name.includes('ipad')) return '📱'
+      if (name.includes('macbook') || name.includes('mac')) return '💻'
+      return '📱'
+    }
+
+    const batteryBar = (pct) => {
+      const color = pct >= 50 ? '#4ade80' : pct >= 20 ? '#fbbf24' : '#f87171'
+      return '<div style="display:inline-block;width:60px;height:10px;background:#1e293b;border-radius:3px;vertical-align:middle;margin-right:6px">' +
+        '<div style="width:' + Math.min(pct,100) + '%;height:100%;background:' + color + ';border-radius:3px"></div></div>' +
+        '<span style="color:' + color + ';font-weight:600">' + pct + '%</span>'
+    }
+
+    const apiUrl = 'http://' + location.hostname + ':8442/api/device-battery'
+
+    let content = '<div style="padding:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<div style="font-size:13px;font-weight:700;color:#e2e8f0">🍎 Apple Devices — Battery</div>' +
+        '<button onclick="loadApple()" style="background:none;border:1px solid #334155;color:#7c6af7;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">↻ Refresh</button>' +
+      '</div>'
+
+    if (devices.length === 0) {
+      content +=
+        '<div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;color:#94a3b8;font-size:13px">' +
+          '<p style="margin:0 0 12px">No devices reporting yet. Set up a Shortcut on each device to POST battery data here.</p>' +
+          '<div style="background:#1e293b;border-radius:6px;padding:12px;font-family:monospace;font-size:11px;color:#7c6af7">' +
+            'POST ' + apiUrl + '<br>' +
+            '{ "device": "Gary\'s iPhone", "battery": 87, "charging": false }' +
+          '</div>' +
+        '</div>'
+    } else {
+      const rows = devices.sort((a,b) => a[0].localeCompare(b[0])).map(([name, info]) => {
+        const ago = Math.round((Date.now() - new Date(info.at)) / 60000)
+        const agoLabel = ago < 60 ? ago + 'm ago' : Math.round(ago/60) + 'h ago'
+        const chargingLabel = info.charging ? ' ⚡' : ''
+        return '<tr style="border-bottom:1px solid #1e293b">' +
+          '<td style="padding:10px 8px;color:#e2e8f0;font-weight:600">' + deviceIcon(name) + ' ' + name + chargingLabel + '</td>' +
+          '<td style="padding:10px 8px">' + batteryBar(info.battery) + '</td>' +
+          '<td style="padding:10px 8px;color:#475569;font-size:11px">' + agoLabel + '</td>' +
+        '</tr>'
+      }).join('')
+
+      content +=
+        '<div style="overflow-x:auto">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+            '<thead><tr style="border-bottom:1px solid #334155">' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Device</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Battery</th>' +
+              '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Last Seen</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div style="margin-top:12px;font-size:11px;color:#475569">POST endpoint: <span style="font-family:monospace;color:#7c6af7">' + apiUrl + '</span></div>'
+    }
+
+    content += '</div>'
+    el.innerHTML = content
   } catch(e) {
     el.innerHTML = '<p style="color:#f87171">⚠ ' + e.message + '</p>'
   }

@@ -9,7 +9,7 @@ import { readFileSync as readFileSyncRaw } from 'fs'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const WATCHER_VERSION = '2026.08.02.11'
+const WATCHER_VERSION = '2026.08.17.16'
 const TOKEN_FILE = 'ring_token.json'
 const HISTORY_FILE = 'home_event_history.json'
 const ALERT_ENV_FILES = ['ring_battery_alert.env', '.env']
@@ -3425,6 +3425,573 @@ function startControlServer() {
       return
     }
 
+    // TCC (Total Connect Comfort) thermostat helper
+    if (!global._tcc) global._tcc = { cookie: null, expires: 0, deviceId: null, locationId: null }
+
+    const tccLogin = async () => {
+      const username = process.env.TCC_USERNAME
+      const password = process.env.TCC_PASSWORD
+      if (!username || !password) throw new Error('TCC_USERNAME / TCC_PASSWORD not set in .env')
+
+      // Step 1: GET login page — collect all cookies + any hidden tokens
+      const getResp = await fetch('https://mytotalconnectcomfort.com/portal/Account/LogOn', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9' }
+      })
+      const html = await getResp.text()
+      // Try multiple CSRF token field names
+      const csrfMatch = html.match(/name="__RequestVerificationToken"[^>]*value="([^"]+)"/) ||
+                        html.match(/value="([^"]+)"[^>]*name="__RequestVerificationToken"/) ||
+                        html.match(/__RequestVerificationToken['"]\s*,\s*value:\s*['"]([^'"]+)/)
+      const csrf = csrfMatch ? csrfMatch[1] : ''
+      // Collect ALL cookies from GET
+      const getRawCookies = typeof getResp.headers.getSetCookie === 'function'
+        ? getResp.headers.getSetCookie()
+        : (getResp.headers.get('set-cookie') || '').split(/,(?=\s*[A-Za-z_])/)
+      const getCookieKVs = getRawCookies.map(c => c.trim().match(/^([^;]+)/)?.[1]).filter(Boolean)
+      console.log('[TCC] GET login page status:', getResp.status, 'csrf:', csrf ? 'found' : 'missing', 'cookies:', getCookieKVs.join('; ').substring(0,100))
+
+      // Step 2: POST credentials with all GET cookies as session
+      const postBody = { UserName: username, Password: password, RememberMe: 'false' }
+      if (csrf) postBody['__RequestVerificationToken'] = csrf
+      const postResp = await fetch('https://mytotalconnectcomfort.com/portal/Account/LogOn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://mytotalconnectcomfort.com/portal/Account/LogOn',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': getCookieKVs.join('; ')
+        },
+        body: new URLSearchParams(postBody),
+        redirect: 'manual'
+      })
+      const raw = postResp.headers.get('set-cookie') || ''
+      console.log('[TCC] POST login status:', postResp.status, 'location:', postResp.headers.get('location'), 'set-cookie:', raw.substring(0, 300))
+      // Successful login → 302 redirect to portal (not to error page)
+      const location = postResp.headers.get('location') || ''
+      const isError = location.includes('Error') || location.includes('LogOn')
+      if (isError || postResp.status >= 400) throw new Error(`TCC login failed (${postResp.status}) location:${location} — check credentials`)
+      // Collect all POST response cookies
+      const postRawCookies = typeof postResp.headers.getSetCookie === 'function'
+        ? postResp.headers.getSetCookie()
+        : raw.split(/,(?=\s*[A-Za-z_.])/)
+      const postCookieKVs = postRawCookies.map(c => c.trim().match(/^([^;]+)/)?.[1]).filter(Boolean)
+      // Merge GET session cookies + POST auth cookies
+      const allCookies = [...getCookieKVs, ...postCookieKVs]
+      global._tcc.cookie = allCookies.join('; ')
+      global._tcc.expires = Date.now() + 28 * 60 * 1000
+      global._tcc.deviceId = null
+      console.log('[TCC] login success, cookie:', global._tcc.cookie.substring(0, 80))
+    }
+
+    const tccSession = async () => {
+      if (!global._tcc.cookie || Date.now() > global._tcc.expires) await tccLogin()
+      return global._tcc.cookie
+    }
+
+    const tccDeviceId = async (cookie) => {
+      if (global._tcc.deviceId) return global._tcc.deviceId
+      const resp = await fetch('https://mytotalconnectcomfort.com/portal/Location/GetLocationListData?page=1&filter=', {
+        headers: { Cookie: cookie, 'X-Requested-With': 'XMLHttpRequest', 'User-Agent': 'Mozilla/5.0' }
+      })
+      const data = await resp.json()
+      const loc = data?.Locations?.[0]
+      if (!loc) throw new Error('No TCC locations found')
+      global._tcc.locationId = loc.LocationID
+      const dev = loc.Devices?.[0]
+      if (!dev) throw new Error('No TCC devices found')
+      global._tcc.deviceId = dev.DeviceID
+      return global._tcc.deviceId
+    }
+
+    const tccPy = async (...args) => {
+      const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
+      const escaped = args.map(a => `"${String(a).replace(/"/g, '\\"')}"`).join(' ')
+      const { stdout, stderr } = await execAsync(`python3.11 "${scriptPath}" ${escaped}`)
+      if (stderr) console.log('[TCC py stderr]', stderr.trim())
+      const result = JSON.parse(stdout.trim())
+      if (result.error) console.log('[TCC py error]', result.error, result.trace || '')
+      return result
+    }
+
+    if (req.url === '/api/tcc-thermostat' && req.method === 'GET') {
+      try {
+        if (!global._tccCache) global._tccCache = { data: null, ts: 0 }
+        const TCC_CACHE_MS = 60 * 1000
+        if (!global._tccCache.data || Date.now() - global._tccCache.ts > TCC_CACHE_MS) {
+          const state = await tccPy('get')
+          if (state.error) throw new Error(state.error)
+          if (state.humidity > 100) state.humidity = null
+          global._tccCache = { data: state, ts: Date.now() }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(global._tccCache.data))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/tcc-thermostat' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          const { action, value } = JSON.parse(body)
+          const result = await tccPy(action, String(value))
+          if (global._tccCache) global._tccCache.ts = 0  // invalidate cache
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(result))
+        } catch(e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    // Shared Alexa init helper
+    const getAlexa = async () => {
+      if (!global._alexaInstance) {
+        const { createRequire } = await import('module')
+        const require = createRequire(import.meta.url)
+        const Alexa = require('./node_modules/alexa-remote2/alexa-remote.js')
+        const fs = await import('fs')
+        const cookiePath = new URL('./alexa_cookie.json', import.meta.url).pathname
+        const cookieData = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
+        global._alexaInstance = new Alexa()
+        const alexaCookiePath = cookiePath
+        await new Promise((resolve, reject) => {
+          global._alexaInstance.init({
+            cookie: cookieData,
+            amazonPage: 'amazon.com',
+            alexaServiceHost: 'pitangui.amazon.com',
+            acceptLanguage: 'en-US',
+            cookieRefreshInterval: 4 * 24 * 60 * 60 * 1000,
+            logger: (msg) => console.log('[alexa-lib]', msg),
+            cookieJustCreated: false
+          }, (err) => { if (err) { global._alexaInstance = null; reject(err) } else resolve() })
+        })
+      }
+      return global._alexaInstance
+    }
+
+    if (req.url === '/api/alexa-devices' && req.method === 'GET') {
+      try {
+        const alexa = await getAlexa()
+        alexa.getDevices((err, data) => {
+          if (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: err.message }))
+            return
+          }
+          const devices = (data.devices || []).map(d => ({
+            name: d.accountName,
+            family: d.deviceFamily,
+            type: d.deviceType,
+            online: d.online,
+            serial: d.serialNumber
+          }))
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ devices }))
+        })
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/alexa-command' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          const { serial, command, value } = JSON.parse(body)
+          const alexa = await getAlexa()
+          alexa.getDevices((err, data) => {
+            if (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+            const devs = data.devices || []
+            const targets = serial === 'ALL'
+              ? devs.filter(d => d.deviceFamily === 'ECHO' && d.online)
+              : devs.filter(d => d.serialNumber === serial)
+            if (!targets.length) { res.writeHead(404); res.end(JSON.stringify({ error: 'Device not found' })); return }
+
+            let done = 0
+            const finish = () => { done++; if (done === targets.length) { res.writeHead(200); res.end(JSON.stringify({ ok: true })) } }
+            const fail = (e) => { res.writeHead(500); res.end(JSON.stringify({ error: e.message || String(e) })) }
+
+            for (const dev of targets) {
+              if (command === 'volume') {
+                alexa.sendSequenceCommand(dev, 'volume', parseInt(value), finish)
+              } else if (command === 'speak') {
+                alexa.sendSequenceCommand(dev, 'speak', String(value), finish)
+              } else if (command === 'play') {
+                alexa.sendCommand(dev, 'PlayCommand', null, finish)
+              } else if (command === 'pause') {
+                alexa.sendCommand(dev, 'PauseCommand', null, finish)
+              } else if (command === 'donotdisturb') {
+                alexa.setDoNotDisturb(dev, value === 'true' || value === true, finish)
+              } else {
+                res.writeHead(400); res.end(JSON.stringify({ error: 'Unknown command' })); return
+              }
+            }
+          })
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    // Device battery store — persisted to disk
+    const BATTERY_FILE = new URL('./device_battery.json', import.meta.url).pathname
+    const loadBattery = () => {
+      try { return JSON.parse(fs.readFileSync(BATTERY_FILE, 'utf8')) } catch { return {} }
+    }
+    const saveBattery = (data) => fs.writeFileSync(BATTERY_FILE, JSON.stringify(data, null, 2))
+
+    if (req.url === '/api/device-battery' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', () => {
+        try {
+          const { device, battery, charging } = JSON.parse(body)
+          if (!device) { res.writeHead(400); res.end(JSON.stringify({ error: 'missing device' })); return }
+          const store = loadBattery()
+          store[device] = { battery: Number(battery), charging: !!charging, at: new Date().toISOString() }
+          saveBattery(store)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ ok: true }))
+        } catch(e) {
+          res.writeHead(400); res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    if (req.url === '/api/device-battery' && req.method === 'GET') {
+      const store = loadBattery()
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ devices: store }))
+      return
+    }
+
+    if (req.url === '/api/alexa-smarthome' && req.method === 'GET') {
+      try {
+        const alexa = await getAlexa()
+        alexa.getSmarthomeDevices((err, data) => {
+          if (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+          const SKIP = new Set(['ACTIVITY_TRIGGER', 'ALEXA_VOICE_ENABLED', 'HUB'])
+          const devices = []
+          for (const loc of Object.values(data.locationDetails || {})) {
+            for (const bridge of Object.values(loc.amazonBridgeDetails?.amazonBridgeDetails || {})) {
+              for (const dev of Object.values(bridge.applianceDetails?.applianceDetails || {})) {
+                const catObj = Object.values(dev.displayCategories || {})[0]
+                const category = catObj?.value || 'OTHER'
+                if (SKIP.has(category)) continue
+                const caps = Object.values(dev.capabilities || {}).map(c => c.interfaceName || c.capabilityType || '').filter(Boolean)
+                devices.push({
+                  name: dev.friendlyName,
+                  category,
+                  endpointId: dev.endpointId,
+                  canPower: caps.some(c => c.includes('PowerController') || c === 'AVSInterfaceCapability'),
+                  canDim: caps.some(c => c.includes('BrightnessController')),
+                  canColor: caps.some(c => c.includes('ColorController')),
+                  isScene: category === 'SCENE_TRIGGER'
+                })
+              }
+            }
+          }
+          devices.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ devices }))
+        })
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/alexa-smarthome-control' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          const { endpointId, action, value, deviceName, colorName } = JSON.parse(body)
+
+          // Build textCommand text for Alexa voice pipeline
+          const buildTextCommand = () => {
+            if (action === 'TurnOn') return `turn on ${deviceName}`
+            if (action === 'TurnOff') return `turn off ${deviceName}`
+            if (action === 'SetColor' && colorName) {
+              const colorMap = { Warm: 'warm white', White: 'white', Red: 'red', Orange: 'orange', Yellow: 'yellow', Green: 'green', Blue: 'blue', Purple: 'purple' }
+              return `set ${deviceName} to ${colorMap[colorName] || colorName.toLowerCase()}`
+            }
+            return null
+          }
+
+          // Send text command via behaviors API (same pipeline as Alexa app)
+          const tryTextCommand = async (text) => {
+            const alexa = await getAlexa()
+            if (!global._echoDevice) {
+              const devs = await new Promise(resolve => alexa.getDevices((err, d) => resolve(err ? [] : d?.devices || [])))
+              global._echoDevice = devs.find(d => d.deviceFamily === 'ECHO') || devs[0]
+              if (global._echoDevice) console.log(`[alexa-ctrl] cached echo device: ${global._echoDevice.accountName}`)
+            }
+            if (!global._echoDevice) { console.log('[alexa-ctrl] no echo device available'); return null }
+            console.log(`[alexa-ctrl] textCommand → "${text}"`)
+            return new Promise(resolve => alexa.sendSequenceCommand(global._echoDevice, 'textCommand', text, (err, r) => {
+              console.log(`[alexa-ctrl] textCommand result: err=${err?.message} r=${JSON.stringify(r)?.substring(0,60)}`)
+              resolve(r)
+            }))
+          }
+
+          // If we have a device name and a mappable action, go straight to textCommand (skip broken Phoenix API)
+          const textCmd = deviceName && buildTextCommand()
+          if (textCmd) {
+            const r = await tryTextCommand(textCmd)
+            res.writeHead(200); res.end(JSON.stringify({ ok: true, result: r, via: 'textCommand' }))
+            return
+          }
+
+          // Phoenix API fallback for actions without textCommand support (SetBrightness, Lock, etc.)
+          const alexaParams = value != null ? { action: action.charAt(0).toLowerCase() + action.slice(1), value } : { action: action.charAt(0).toLowerCase() + action.slice(1) }
+          const tryControl = async (retry = false) => {
+            const alexa = await getAlexa()
+            alexa.executeSmarthomeDeviceAction([endpointId], alexaParams, 'APPLIANCE', async (err, result) => {
+              const isNoBody = err?.message === 'no body'
+              if (isNoBody && result === null && !retry) {
+                console.log('[alexa-ctrl] session appears stale, resetting...')
+                global._alexaInstance = null
+                global._echoDevice = null
+                return tryControl(true)
+              }
+              if (err && !isNoBody) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+              const errors = result?.errors?.length ? result.errors : undefined
+              console.log(`[alexa-ctrl] ${action} → ${endpointId?.substring(0,30)} result:${JSON.stringify(result)?.substring(0,80)}`)
+              res.writeHead(200); res.end(JSON.stringify({ ok: true, result, errors }))
+            })
+          }
+          await tryControl()
+        } catch(e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    if (req.url === '/api/alexa-power-states' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          const { endpointIds } = JSON.parse(body)
+          const alexa = await getAlexa()
+          alexa.querySmarthomeDevices(endpointIds, 'APPLIANCE', (err, data) => {
+            if (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+            const states = {}
+            const lockStates = {}
+            const brightnessStates = {}
+            for (const ds of (data?.deviceStates || [])) {
+              const eid = ds.entity?.entityId || ds.endpointId
+              if (!eid) continue
+              for (const raw of (ds.capabilityStates || [])) {
+                try {
+                  const s = typeof raw === 'string' ? JSON.parse(raw) : raw
+                  if (s.namespace === 'Alexa.PowerController' && s.name === 'powerState') {
+                    states[eid] = s.value === 'ON'
+                  }
+                  if (s.namespace === 'Alexa.LockController' && s.name === 'lockState') {
+                    lockStates[eid] = s.value === 'LOCKED'
+                  }
+                  if (s.namespace === 'Alexa.BrightnessController' && s.name === 'brightness') {
+                    brightnessStates[eid] = s.value
+                  }
+                } catch {}
+              }
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ states, lockStates, brightnessStates }))
+          })
+        } catch(e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    if (req.url === '/api/alexa-debug-states' && req.method === 'GET') {
+      try {
+        const alexa = await getAlexa()
+        alexa.querySmarthomeDevices(null, 'APPLIANCE', (err, data) => {
+          if (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data, null, 2))
+        })
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url.startsWith('/api/alexa-device-state') && req.method === 'GET') {
+      const endpointId = new URL(req.url, 'http://localhost').searchParams.get('endpointId')
+      try {
+        const alexa = await getAlexa()
+        alexa.querySmarthomeDevices([endpointId], 'APPLIANCE', (err, data) => {
+          if (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); return }
+          // Extract thermostat properties from the response
+          const props = {}
+          try {
+            const deviceState = data?.deviceStates?.[0]?.capabilityStates || []
+            for (const state of deviceState) {
+              const s = typeof state === 'string' ? JSON.parse(state) : state
+              if (s.namespace === 'Alexa.ThermostatController') {
+                if (s.name === 'targetSetpoint') props.targetTemp = s.value?.value
+                if (s.name === 'thermostatMode') props.mode = s.value?.value
+              }
+              if (s.namespace === 'Alexa.TemperatureSensor' && s.name === 'temperature') {
+                props.currentTemp = s.value?.value
+              }
+            }
+          } catch(pe) { props.parseError = pe.message }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ props, raw: data }))
+        })
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/ring-light-states' && req.method === 'GET') {
+      try {
+        const hist = existsSync(HISTORY_FILE) ? JSON.parse(readFileSync(HISTORY_FILE, 'utf-8')) : { states: {} }
+        const lights = {}
+        for (const [k, v] of Object.entries(hist.states || {})) {
+          if (k.startsWith('ring:light:')) {
+            const name = k.replace('ring:light:', '')
+            lights[name] = { on: v.state === 'on', name: v.name }
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(lights))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/ring-sensor-events' && req.method === 'GET') {
+      try {
+        const hist = existsSync(HISTORY_FILE) ? JSON.parse(readFileSync(HISTORY_FILE, 'utf-8')) : { events: [] }
+        // Find last event per device name
+        const last = {}
+        for (const ev of (hist.events || [])) {
+          if (!ev.name) continue
+          if (!last[ev.name] || new Date(ev.time) > new Date(last[ev.name].time)) {
+            last[ev.name] = ev
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(last))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    if (req.url === '/api/hue-light-states' && req.method === 'GET') {
+      try {
+        if (!hueTokenCache.accessToken || !HUE_USERNAME) {
+          res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); return
+        }
+        let resp = await fetch(`https://api.meethue.com/route/api/${HUE_USERNAME}/lights`,
+          { headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}` } })
+        if (resp.status === 401) {
+          await refreshHueToken()
+          resp = await fetch(`https://api.meethue.com/route/api/${HUE_USERNAME}/lights`,
+            { headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}` } })
+        }
+        const data = await resp.json()
+        const lights = {}
+        for (const [id, light] of Object.entries(data)) {
+          if (light.name && light.state) {
+            lights[light.name.toLowerCase()] = {
+              id,
+              on: light.state.on,
+              bri: Math.round((light.state.bri ?? 254) / 254 * 100)
+            }
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(lights))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    // Direct Hue control: PUT /api/hue-control {lightId, on?, bri?, hue?, sat?}
+    if (req.url === '/api/hue-control' && req.method === 'POST') {
+      let body = ''
+      req.on('data', c => body += c)
+      req.on('end', async () => {
+        try {
+          if (!hueTokenCache.accessToken || !HUE_USERNAME) {
+            res.writeHead(500); res.end(JSON.stringify({ error: 'Hue not configured' })); return
+          }
+          const { lightId, on, bri, hue, sat } = JSON.parse(body)
+          const state = {}
+          if (on !== undefined) state.on = on
+          if (bri !== undefined) state.bri = Math.round(bri / 100 * 254)
+          if (hue !== undefined) state.hue = Math.round(hue / 360 * 65535)
+          if (sat !== undefined) state.sat = Math.round(sat * 254)
+          if (hue !== undefined || sat !== undefined) state.on = true  // color implies on
+          let resp = await fetch(
+            `https://api.meethue.com/route/api/${HUE_USERNAME}/lights/${lightId}/state`,
+            { method: 'PUT', headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(state) }
+          )
+          if (resp.status === 401) {
+            await refreshHueToken()
+            resp = await fetch(
+              `https://api.meethue.com/route/api/${HUE_USERNAME}/lights/${lightId}/state`,
+              { method: 'PUT', headers: { 'Authorization': `Bearer ${hueTokenCache.accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(state) }
+            )
+          }
+          const result = await resp.json()
+          console.log(`[hue-ctrl] light ${lightId} state ${JSON.stringify(state)} → ${JSON.stringify(result).substring(0,60)}`)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ ok: true, result }))
+        } catch(e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+      return
+    }
+
+    if (req.url === '/api/ring-camera-batteries' && req.method === 'GET') {
+      try {
+        if (!ringApiInstance) { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify({})); return }
+        const cams = await ringApiInstance.getCameras()
+        const result = {}
+        for (const cam of cams) {
+          const d = cam.data ?? {}
+          const b1 = d.battery_life   != null ? parseInt(d.battery_life,   10) : null
+          const b2 = d.battery_life_2 != null ? parseInt(d.battery_life_2, 10) : null
+          if (b1 == null) continue  // wired, skip
+          result[cam.name] = { battery: b1, battery2: b2 }
+        }
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(result))
+      } catch(e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
     if (req.url === '/api/orbi-devices' && req.method === 'GET') {
       try {
         if (!global._orbiCache) global._orbiCache = { data: null, ts: 0, token: null, cookie: null, tokenTs: 0 }
@@ -4273,6 +4840,51 @@ async function subscribeToRingDeviceChanges(ringApi) {
   }
 }
 
+// Auto thermostat mode switching based on outdoor temperature
+const TCC_AUTO_HEAT_BELOW = parseFloat(process.env.TCC_AUTO_HEAT_BELOW ?? '65')
+const TCC_AUTO_COOL_ABOVE = parseFloat(process.env.TCC_AUTO_COOL_ABOVE ?? '76')
+
+async function checkThermostatAutoSwitch() {
+  try {
+    const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
+    const { stdout } = await execAsync(`python3.11 "${scriptPath}" get`)
+    const state = JSON.parse(stdout.trim())
+    if (state.error) { console.log('[TCC Auto] Thermostat error:', state.error); return }
+
+    const outdoorTemp = state.outdoorTemp
+    if (outdoorTemp == null) { console.log('[TCC Auto] No outdoor temp from thermostat'); return }
+
+    const currentMode = state.mode
+    if (currentMode === 'OFF') { console.log('[TCC Auto] Thermostat is OFF — skipping'); return }
+
+    console.log(`[TCC Auto] Outdoor: ${outdoorTemp}°F, mode: ${currentMode}, thresholds: heat<${TCC_AUTO_HEAT_BELOW} cool>${TCC_AUTO_COOL_ABOVE}`)
+
+    let targetMode = null
+    if (outdoorTemp < TCC_AUTO_HEAT_BELOW && currentMode !== 'HEAT') targetMode = 'HEAT'
+    else if (outdoorTemp > TCC_AUTO_COOL_ABOVE && currentMode !== 'COOL') targetMode = 'COOL'
+
+    if (targetMode) {
+      console.log(`[TCC Auto] Switching ${currentMode} → ${targetMode} (outdoor: ${outdoorTemp}°F)`)
+      await execAsync(`python3.11 "${scriptPath}" setMode ${targetMode}`)
+      if (global._tccCache) global._tccCache.ts = 0
+    } else {
+      console.log(`[TCC Auto] Mode OK — no change`)
+    }
+  } catch(e) {
+    console.error('[TCC Auto] Error:', e.message)
+  }
+}
+
+function scheduleThermostatAutoSwitch() {
+  const INTERVAL_MS = 30 * 60 * 1000  // check every 30 minutes
+  const STARTUP_DELAY_MS = 2 * 60 * 1000  // wait 2 min on startup to avoid rate limiting
+  setTimeout(() => {
+    checkThermostatAutoSwitch()
+    setInterval(checkThermostatAutoSwitch, INTERVAL_MS)
+  }, STARTUP_DELAY_MS)
+  console.log('[TCC Auto] First check in 2 minutes')
+}
+
 async function main() {
   console.log(`Home Event Watcher v${WATCHER_VERSION}`)
   console.log(`Polling every ${INTERVAL_SECONDS}s; cause window ${CAUSE_WINDOW_SECONDS}s.`)
@@ -4290,6 +4902,7 @@ async function main() {
   if (!RUN_ONCE) startControlServer()
   if (!RUN_ONCE) subscribeToRingDeviceChanges(ringApi)
   if (!RUN_ONCE) scheduleDailyDigest()
+  if (!RUN_ONCE) scheduleThermostatAutoSwitch()
 
   do {
     try {
