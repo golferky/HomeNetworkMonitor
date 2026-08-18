@@ -721,6 +721,7 @@ async function loadHueBrightness() {
       if (state.on !== undefined) applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Hue brightness fetch failed:', e) }
+  updateRoomToggleButtons()
 }
 
 async function hueControl(pid, body) {
@@ -757,6 +758,7 @@ async function loadRingStates() {
       applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Ring states fetch failed:', e) }
+  updateRoomToggleButtons()
 }
 
 async function fetchPowerStates() {
@@ -784,7 +786,6 @@ async function fetchPowerStates() {
       if (endpointId in (d.brightnessStates || {})) applyBrightness(pid, d.brightnessStates[endpointId])
     }
   } catch(e) { console.warn('Power state fetch failed:', e.message) }
-  updateRoomToggleButtons()
 }
 
 function updateRoomToggleButtons() {
@@ -831,17 +832,11 @@ async function roomOff(room) {
 }
 
 async function roomToggleByNames(btn, deviceNamesStr) {
-  const names = deviceNamesStr.split('|')
-  const anyOn = names.some(name => {
-    const dev = _shPowerIds.find(d => d.name === name)
-    if (!dev) return false
-    const btn = document.getElementById(dev.pid + '_toggle')
-    return btn?.dataset.state === 'on'
-  })
-  const turningOff = anyOn
+  const turningOff = btn.textContent.trim() === 'All Off'
   btn.textContent = turningOff ? 'All On' : 'All Off'
   btn.style.background = turningOff ? '#166534' : '#7f1d1d'
   btn.style.borderColor = turningOff ? '#4ade80' : '#ef4444'
+  const names = deviceNamesStr.split('|')
   for (const name of names) {
     const dev = _shPowerIds.find(d => d.name === name)
     if (!dev) continue
