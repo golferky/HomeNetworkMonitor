@@ -787,8 +787,8 @@ function updateRoomToggleButtons() {
     const anyOn = deviceNamesStr.split('|').some(name => {
       const dev = _shPowerIds.find(d => d.name === name)
       if (!dev) return false
-      const pb = document.getElementById('pb_' + dev.pid)
-      return pb && pb.textContent.trim() === 'On'
+      const tb = document.getElementById(dev.pid + '_toggle')
+      return tb?.dataset.state === 'on'
     })
     btn.textContent = anyOn ? 'All Off' : 'All On'
     btn.style.background = anyOn ? '#7f1d1d' : '#166534'
@@ -828,8 +828,8 @@ async function roomToggleByNames(btn, deviceNamesStr) {
   const anyOn = names.some(name => {
     const dev = _shPowerIds.find(d => d.name === name)
     if (!dev) return false
-    const pb = document.getElementById('pb_' + dev.pid)
-    return pb && pb.textContent.trim() === 'On'
+    const btn = document.getElementById(dev.pid + '_toggle')
+    return btn?.dataset.state === 'on'
   })
   const turningOff = anyOn
   btn.textContent = turningOff ? 'All On' : 'All Off'
