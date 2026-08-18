@@ -796,10 +796,26 @@ async function shToggle(endpointId, pid) {
 }
 
 async function roomOff(room) {
-  const devs = _roomPids[room] || []
-  for (const { endpointId, pid } of devs) {
-    const btn = document.getElementById(pid + '_toggle')
-    if (btn?.dataset.state === 'on') await shToggle(endpointId, pid)
+  const devs = _shPowerIds.filter(d => d.room === room)
+  console.log('[roomOff]', room, devs.length, 'devices', JSON.stringify(devs.map(d=>d.name)))
+  for (const { endpointId, pid, name } of devs) {
+    applyPowerState(pid, false)
+    const usedHue = await hueControl(pid, { on: false })
+    const usedRing = !usedHue && await ringControl(pid, false)
+    if (!usedHue && !usedRing) await shControl(endpointId, 'TurnOff', null, name)
+  }
+}
+
+async function roomOffByNames(deviceNamesStr) {
+  const names = deviceNamesStr.split('|')
+  console.log('[roomOffByNames] devices:', names)
+  for (const name of names) {
+    const dev = _shPowerIds.find(d => d.name === name)
+    if (!dev) { console.log('[roomOffByNames] no entry for:', name); continue }
+    applyPowerState(dev.pid, false)
+    const usedHue = await hueControl(dev.pid, { on: false })
+    const usedRing = !usedHue && await ringControl(dev.pid, false)
+    if (!usedHue && !usedRing) await shControl(dev.endpointId, 'TurnOff', null, dev.name)
   }
 }
 
@@ -1112,10 +1128,15 @@ async function loadSmartHome() {
       for (const [room, roomDevs] of roomGroups) {
         if (useRooms && room) {
           if (!_roomPids[room]) _roomPids[room] = []
-          html += '<div style="width:100%;display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;padding-bottom:3px;border-bottom:1px solid #1e293b">' +
-            '<span style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em">' + room + '</span>' +
-            (roomDevs.length > 1 ? '<button onclick="roomOff(\'' + room.replace(/'/g,"\\'") + '\')" style="font-size:9px;padding:2px 6px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:3px;cursor:pointer">All Off</button>' : '') +
-            '</div>'
+          html += '<div style="width:100%;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin:6px 0 4px;padding-bottom:3px;border-bottom:1px solid #1e293b">' + room + '</div>'
+          if (roomDevs.length > 1) {
+            const deviceNames = roomDevs.map(d => d.name).join('|')
+            html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;min-width:160px">' +
+              '<div style="font-size:12px;color:#e2e8f0;font-weight:600;margin-bottom:8px">💡 ' + room + '</div>' +
+              '<button onclick="roomOffByNames(\'' + deviceNames.replace(/'/g,"\\'") + '\')" ' +
+              'style="width:100%;background:#166534;border:2px solid #4ade80;color:#fff;border-radius:4px;padding:5px;cursor:pointer;font-size:11px">All Off</button>' +
+              '</div>'
+          }
         }
         for (const dev of roomDevs) {
         const eid = dev.endpointId.replace(/[^a-z0-9]/gi, '_')
@@ -1126,7 +1147,7 @@ async function loadSmartHome() {
             '▶ ' + dev.name + '</button>'
         } else if (cat === 'LIGHT' || cat === 'SMARTPLUG') {
           const pid = 'pw_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
-          _shPowerIds.push({ endpointId: dev.endpointId, pid, name: dev.name })
+          _shPowerIds.push({ endpointId: dev.endpointId, pid, name: dev.name, room })
           if (room) { if (!_roomPids[room]) _roomPids[room] = []; _roomPids[room].push({ endpointId: dev.endpointId, pid, name: dev.name }) }
           _nameToPid[dev.name.toLowerCase()] = pid
           if (dev.colorEndpointId) _nameToPid[(dev.name + ' color').toLowerCase()] = pid
