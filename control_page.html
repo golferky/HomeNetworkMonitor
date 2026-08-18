@@ -591,6 +591,7 @@ async function loadAlexa() {
 let _shPowerIds = []
 let _shLockIds = []
 const _roomPids = {}  // room name → [{endpointId, pid, name}]
+const _recentlyToggled = {}  // pid → timestamp, skip poll overrides for 15s
 const _nameToPid = {}  // lowercase device name → pid
 const _hueIdByPid = {}   // pid → Hue light numeric ID (for direct Hue API control)
 const _ringKeyByPid = {} // pid → Ring device name key (for direct Ring API control)
@@ -660,9 +661,10 @@ async function loadCameraBatteries() {
   } catch(e) { console.warn('Camera battery fetch failed:', e) }
 }
 
-function applyPowerState(pid, isOn) {
+function applyPowerState(pid, isOn, fromPoll) {
   const btn = document.getElementById(pid + '_toggle')
   if (!btn) return
+  if (!fromPoll) _recentlyToggled[pid] = Date.now()
   // Green = off (safe), Red = on (active)
   btn.textContent = isOn ? 'On' : 'Off'
   btn.style.background  = isOn ? '#7f1d1d' : '#166534'
@@ -716,7 +718,7 @@ async function loadHueBrightness() {
       if (!pid) continue
       if (state.id) _hueIdByPid[pid] = state.id  // cache Hue light ID for direct control
       applyBrightness(pid, state.bri)
-      if (state.on !== undefined) applyPowerState(pid, state.on)
+      if (state.on !== undefined) applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Hue brightness fetch failed:', e) }
 }
@@ -752,7 +754,7 @@ async function loadRingStates() {
       const pid = _nameToPid[ringKey] || _nameToPid[state.name?.toLowerCase()]
       if (!pid) continue
       _ringKeyByPid[pid] = ringKey  // cache for control
-      applyPowerState(pid, state.on)
+      applyPowerState(pid, state.on, true)
     }
   } catch(e) { console.warn('Ring states fetch failed:', e) }
 }
@@ -767,8 +769,13 @@ async function fetchPowerStates() {
       body: JSON.stringify({ endpointIds: allIds.map(x => x.endpointId) })
     })
     const d = await r.json()
+    const now = Date.now()
     for (const { endpointId, pid } of _shPowerIds) {
-      if (endpointId in (d.states || {})) applyPowerState(pid, d.states[endpointId])
+      if (endpointId in (d.states || {})) {
+        if (!_recentlyToggled[pid] || now - _recentlyToggled[pid] > 15000) {
+          applyPowerState(pid, d.states[endpointId], true)
+        }
+      }
     }
     for (const { endpointId, pid } of _shLockIds) {
       if (endpointId in (d.lockStates || {})) applyLockState(pid, d.lockStates[endpointId])
