@@ -673,7 +673,7 @@ function applyPowerState(pid, isOn, fromPoll) {
   btn.dataset.state = isOn ? 'on' : 'off'
   const pctEl = document.getElementById(pid + '_pct')
   if (pctEl && !isOn) pctEl.textContent = ''
-  if (!isOn) document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
+  if (!isOn && !fromPoll) document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
 }
 
 function applyLockState(pid, isLocked) {
