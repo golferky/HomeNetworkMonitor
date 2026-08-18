@@ -677,6 +677,15 @@ function applyPowerState(pid, isOn, fromPoll) {
     document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
     clearColorSel(pid)
   }
+  if (isOn) {
+    try {
+      const s = JSON.parse(localStorage.getItem('colorSels')||'{}')
+      if (s[pid]) {
+        const cb = document.querySelector(`[data-pid-color="${pid}"][title="${s[pid]}"]`)
+        if (cb) { cb.style.borderColor = '#fff'; cb.style.boxShadow = '0 0 0 3px #fff' }
+      }
+    } catch(e) {}
+  }
 }
 
 function applyLockState(pid, isLocked) {
