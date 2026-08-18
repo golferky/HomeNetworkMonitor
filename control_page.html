@@ -673,7 +673,10 @@ function applyPowerState(pid, isOn, fromPoll) {
   btn.dataset.state = isOn ? 'on' : 'off'
   const pctEl = document.getElementById(pid + '_pct')
   if (pctEl && !isOn) pctEl.textContent = ''
-  if (!isOn && !fromPoll) document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
+  if (!isOn && !fromPoll) {
+    document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
+    clearColorSel(pid)
+  }
 }
 
 function applyLockState(pid, isLocked) {
@@ -983,11 +986,28 @@ async function setBrightness(pid, endpointId, pct) {
   if (!usedHue) await shControl(endpointId, 'SetBrightness', pct)
 }
 
+function saveColorSel(pid, colorName) {
+  try { const s = JSON.parse(localStorage.getItem('colorSels')||'{}'); s[pid] = colorName; localStorage.setItem('colorSels', JSON.stringify(s)) } catch(e) {}
+}
+function clearColorSel(pid) {
+  try { const s = JSON.parse(localStorage.getItem('colorSels')||'{}'); delete s[pid]; localStorage.setItem('colorSels', JSON.stringify(s)) } catch(e) {}
+}
+function restoreColorSels() {
+  try {
+    const s = JSON.parse(localStorage.getItem('colorSels')||'{}')
+    for (const [pid, colorName] of Object.entries(s)) {
+      const btn = document.querySelector(`[data-pid-color="${pid}"][title="${colorName}"]`)
+      if (btn) { btn.style.borderColor = '#fff'; btn.style.boxShadow = '0 0 0 3px #fff' }
+    }
+  } catch(e) {}
+}
+
 async function setColor(btn, colorEid, powerEid, pid, h, s, b, colorName) {
   // Clear previous selection for this device, mark new one
   document.querySelectorAll(`[data-pid-color="${pid}"]`).forEach(b => { b.style.borderColor = '#334155'; b.style.boxShadow = '' })
   btn.style.borderColor = '#fff'
   btn.style.boxShadow = '0 0 0 3px #fff'
+  saveColorSel(pid, colorName)
   applyPowerState(pid, true)  // optimistic: light on
   // Prefer direct Hue control (hue in 0-360, sat in 0-1, bri in 0-1 — server converts)
   const usedHue = await hueControl(pid, { on: true, hue: h, sat: s, bri: Math.round(b * 100) })
@@ -1331,6 +1351,7 @@ async function loadSmartHome() {
 
     html += '</div>'
     el.innerHTML = html
+    restoreColorSels()
     setTimeout(() => {
       for (const { pid } of _shPowerIds) loadSavedBrightness(pid)
       loadHueBrightness()
