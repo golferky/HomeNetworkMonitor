@@ -1211,7 +1211,7 @@ async function loadSmartHome() {
                 const ppid = pid
                 return '<button title="' + label + '" data-pid-color="' + ppid + '" onclick="setColor(this,\'' + ceid + '\',\'' + peid + '\',\'' + ppid + '\',' + h + ',' + s + ',' + b + ',\'' + label + '\')" ' +
                   'style="width:22px;height:22px;border-radius:50%;background:' + color + ';border:2px solid #334155;cursor:pointer;padding:0" ' +
-                  'onmouseover="this.style.borderColor=\'#fff\'" onmouseout="this.style.borderColor=\'#334155\'"></button>'
+                  'onmouseover="this.style.borderColor=\'#fff\'" onmouseout="if(!this.style.boxShadow)this.style.borderColor=\'#334155\'"></button>'
               }).join('') +
             '</div>') : '') +
           '</div>'
