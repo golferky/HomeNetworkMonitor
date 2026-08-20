@@ -2746,14 +2746,7 @@ function startDashboard() {
           res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' })
           res.end(snapshot)
         } catch(snapErr) {
-          if (snapErr.message?.includes('Motion detection is disabled')) {
-            // Return a placeholder SVG image
-            const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#1e293b"/><text x="320" y="165" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="16">Motion Detection Disabled</text><text x="320" y="195" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="12">${camName}</text><text x="320" y="220" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11">Enable in Ring app to see snapshots</text></svg>`)
-            res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' })
-            res.end(svg)
-          } else {
-            throw snapErr
-          }
+          throw snapErr
         }
       } catch(e) {
         console.log(`Snapshot error for ${camName}:`, e.message)
@@ -3474,7 +3467,7 @@ ${action ? `cur.execute("""INSERT INTO presence_events (device,action,place,lat,
 db.close()
 print('ok')
 `
-            exec(`python3 -c ${JSON.stringify(pyScript)}`, (err, stdout, stderr) => {
+            exec(`/opt/homebrew/bin/python3.11 -c ${JSON.stringify(pyScript)}`, (err, stdout, stderr) => {
               if (err) console.error('[location-db]', stderr?.slice(0,200))
               else console.log('[location-db] wrote to MariaDB')
             })
@@ -3665,7 +3658,7 @@ def default(o):
     return str(o)
 print(json.dumps({"events": list(events), "devices": list(devices)}, default=default))
 `
-        const { stdout } = await execFileP('/usr/bin/python3', ['-c', pyScript])
+        const { stdout } = await execFileP('/usr/bin//opt/homebrew/bin/python3.11', ['-c', pyScript])
         res.writeHead(200, {'Content-Type':'application/json'})
         res.end(stdout)
       } catch(e) {
@@ -3815,7 +3808,7 @@ print(json.dumps({"events": list(events), "devices": list(devices)}, default=def
     const tccPy = async (...args) => {
       const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
       const escaped = args.map(a => `"${String(a).replace(/"/g, '\\"')}"`).join(' ')
-      const { stdout, stderr } = await execAsync(`python3 "${scriptPath}" ${escaped}`)
+      const { stdout, stderr } = await execAsync(`/opt/homebrew/bin/python3.11 "${scriptPath}" ${escaped}`)
       if (stderr) console.log('[TCC py stderr]', stderr.trim())
       const result = JSON.parse(stdout.trim())
       if (result.error) console.log('[TCC py error]', result.error, result.trace || '')
@@ -5154,7 +5147,7 @@ const TCC_AUTO_COOL_ABOVE = parseFloat(process.env.TCC_AUTO_COOL_ABOVE ?? '76')
 async function checkThermostatAutoSwitch() {
   try {
     const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
-    const { stdout } = await execAsync(`python3 "${scriptPath}" get`)
+    const { stdout } = await execAsync(`/opt/homebrew/bin/python3.11 "${scriptPath}" get`)
     const state = JSON.parse(stdout.trim())
     if (state.error) { console.log('[TCC Auto] Thermostat error:', state.error); return }
 
@@ -5172,7 +5165,7 @@ async function checkThermostatAutoSwitch() {
 
     if (targetMode) {
       console.log(`[TCC Auto] Switching ${currentMode} → ${targetMode} (outdoor: ${outdoorTemp}°F)`)
-      await execAsync(`python3 "${scriptPath}" setMode ${targetMode}`)
+      await execAsync(`/opt/homebrew/bin/python3.11 "${scriptPath}" setMode ${targetMode}`)
       if (global._tccCache) global._tccCache.ts = 0
     } else {
       console.log(`[TCC Auto] Mode OK — no change`)
