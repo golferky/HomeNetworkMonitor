@@ -52,6 +52,7 @@
     <button class="tab" onclick="showTab('alexa',this)">🔊 Alexa</button>
     <button class="tab" onclick="showTab('smarthome',this)">🏠 Smart Home</button>
     <button class="tab" onclick="showTab('apple',this)">🍎 Apple</button>
+    <button class="tab" onclick="showTab('findmy',this);loadFindMy()">📍 Find My</button>
   </div>
 </div>
 
@@ -68,6 +69,7 @@
 <div id="tab-alexa" class="content"></div>
 <div id="tab-smarthome" class="content"></div>
 <div id="tab-apple" class="content"></div>
+<div id="tab-findmy" class="content"></div>
 <div id="status" class="status-bar"></div>
 
 <script>
@@ -655,7 +657,7 @@ async function loadCameraBatteries() {
       if (!b) { el.textContent = '🔌 Wired'; continue }
       const pct = b.battery2 != null ? Math.min(b.battery, b.battery2) : b.battery
       const color = pct > 50 ? '#4ade80' : pct > 20 ? '#fbbf24' : '#f87171'
-      const label = b.battery2 != null ? `${b.battery}% / ${b.battery2}%` : `${b.battery}%`
+      const label = b.battery2 != null ? `L: ${b.battery}% / R: ${b.battery2}%` : `${b.battery}%`
       el.innerHTML = '<span style="color:' + color + '">🔋 ' + label + '</span>'
     }
   } catch(e) { console.warn('Camera battery fetch failed:', e) }
@@ -1303,7 +1305,7 @@ async function loadSmartHome() {
               'onclick="this.src=\'/snapshot/' + encodeURIComponent(dev.name) + '?t=\'+Date.now()" ' +
               'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'" ' +
               'title="Click to refresh">' +
-            '<div style="display:none;padding:16px;text-align:center;color:#475569;font-size:11px">No snapshot available</div>' +
+            '<div style="display:none;padding:16px;text-align:center;color:#475569;font-size:11px">No snapshot available<br><span onclick="var p=this.parentNode;p.style.display=\'none\';var img=p.previousSibling;img.style.display=\'block\';img.src=img.src.split(\'?\')[0]+\'?t=\'+Date.now()" style="color:#60a5fa;cursor:pointer;font-size:10px;margin-top:4px;display:inline-block">↺ Retry</span></div>' +
           '</div>'
           _camBatteryIds.push({ name: dev.name, camKey })
         } else if (cat === 'SMARTLOCK') {
@@ -1474,6 +1476,16 @@ async function loadEventHistory() {
         <select id="evt-filter-source" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
           <option value="">All Sources</option>
         </select>
+        <select id="evt-filter-trigger" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">All Trigger Sources</option>
+          <option value="Alexa">Alexa</option>
+          <option value="Apple Home">Apple Home</option>
+          <option value="Siri">Siri</option>
+          <option value="Voice">Voice</option>
+          <option value="Routine">Routine</option>
+          <option value="Manual">Manual</option>
+          <option value="Schedule">Schedule</option>
+        </select>
         <input id="evt-filter-from" type="date" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
         <input id="evt-filter-to" type="date" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px">
         <button onclick="queryEventHistory()" style="background:#7c6af7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">Search</button>
@@ -1491,15 +1503,17 @@ async function loadEventHistory() {
 }
 
 async function queryEventHistory() {
-  const source = document.getElementById('evt-filter-source')?.value ?? ''
-  const from   = document.getElementById('evt-filter-from')?.value ?? ''
-  const to     = document.getElementById('evt-filter-to')?.value ?? ''
+  const source      = document.getElementById('evt-filter-source')?.value ?? ''
+  const from        = document.getElementById('evt-filter-from')?.value ?? ''
+  const to          = document.getElementById('evt-filter-to')?.value ?? ''
+  const triggerSrc  = document.getElementById('evt-filter-trigger')?.value ?? ''
   const results = document.getElementById('evt-results')
   results.innerHTML = '<p style="color:var(--muted)">Loading…</p>'
   const params = new URLSearchParams()
-  if (source) params.set('source', source)
-  if (from)   params.set('from', from)
-  if (to)     params.set('to', to)
+  if (source)     params.set('source', source)
+  if (from)       params.set('from', from)
+  if (to)         params.set('to', to)
+  if (triggerSrc) params.set('triggerSource', triggerSrc)
   params.set('limit', '500')
   try {
     const r = await fetch('/api/event-history?' + params)
@@ -1510,8 +1524,22 @@ async function queryEventHistory() {
       d.sources.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o) })
       if (source) sel.value = source
     }
+    // Populate trigger source dropdown with any new values from the API
+    const trigSel = document.getElementById('evt-filter-trigger')
+    if (trigSel && d.triggerSources?.length) {
+      const existing = [...trigSel.options].map(o => o.value)
+      d.triggerSources.forEach(s => {
+        if (!existing.includes(s)) {
+          const o = document.createElement('option'); o.value = s; o.textContent = s; trigSel.appendChild(o)
+        }
+      })
+      if (triggerSrc) trigSel.value = triggerSrc
+    }
     document.getElementById('evt-count').textContent = `${d.total} event${d.total!==1?'s':''}`
     const priorityColor = p => p==='critical'?'#f87171':p==='important'?'#fbbf24':'#9ca3af'
+    const triggerBadge = ts => ts
+      ? `<span style="font-size:10px;background:#1e3a5f;color:#60a5fa;border-radius:4px;padding:1px 5px;white-space:nowrap">${ts.source}${ts.routine ? ' · ' + ts.routine : ''}</span>`
+      : '<span style="color:#334155;font-size:10px">—</span>'
     const rows = d.events.map(e => {
       const t = new Date(e.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})
       const pri = getEventPriorityClient(e)
@@ -1521,6 +1549,7 @@ async function queryEventHistory() {
         <td style="color:#94a3b8">${e.source}</td>
         <td>${e.name}</td>
         <td style="color:#64748b">${e.previousState??''} → ${e.state}</td>
+        <td>${triggerBadge(e.triggerSource)}</td>
       </tr>`
     }).join('')
     results.innerHTML = rows
@@ -1531,6 +1560,7 @@ async function queryEventHistory() {
             <th style="text-align:left;color:#64748b;padding:4px">Source</th>
             <th style="text-align:left;color:#64748b;padding:4px">Device</th>
             <th style="text-align:left;color:#64748b;padding:4px">Change</th>
+            <th style="text-align:left;color:#64748b;padding:4px">Triggered By</th>
           </tr>${rows}</table>`
       : '<p style="color:var(--muted)">No events found for those filters.</p>'
   } catch(e) {
@@ -1540,11 +1570,56 @@ async function queryEventHistory() {
 
 function clearEventFilters() {
   document.getElementById('evt-filter-source').value = ''
+  document.getElementById('evt-filter-trigger').value = ''
   const today = new Date().toISOString().slice(0,10)
   const week = new Date(Date.now() - 7*86400000).toISOString().slice(0,10)
   document.getElementById('evt-filter-from').value = week
   document.getElementById('evt-filter-to').value = today
   queryEventHistory()
+}
+
+async function loadFindMyHistory() {
+  const body   = document.getElementById('fm-history-body')
+  const device = document.getElementById('fm-hist-device')?.value ?? ''
+  const place  = document.getElementById('fm-hist-place')?.value  ?? ''
+  const days   = document.getElementById('fm-hist-days')?.value   ?? '30'
+  if (!body) return
+  body.innerHTML = '<div style="color:#64748b;padding:12px;font-size:13px">Loading…</div>'
+  try {
+    const params = new URLSearchParams({ days, limit: 200 })
+    if (device) params.set('device', device)
+    if (place)  params.set('place', place)
+    const r = await fetch('/api/findmy/history?' + params)
+    const d = await r.json()
+    if (d.error) { body.innerHTML = `<div style="color:#f87171;padding:12px">${d.error}</div>`; return }
+    const events = d.events || []
+    if (!events.length) { body.innerHTML = '<div style="color:#64748b;padding:12px;font-size:13px">No events found.</div>'; return }
+
+    const actionIcon = a => a === 'arrived' ? '🟢' : '🔴'
+    const rows = events.map(e => {
+      const label  = e.place || e.geo_name || '?'
+      const dur    = e.duration_sec != null
+        ? `<span style="color:#64748b;font-size:11px"> · ${Math.round(e.duration_sec/60)}m</span>` : ''
+      const ts     = new Date(e.created_at).toLocaleString()
+      return `<tr style="border-top:1px solid #1e293b">
+        <td style="padding:8px 12px;font-size:12px;color:#94a3b8">${ts}</td>
+        <td style="padding:8px 12px;color:#e2e8f0;font-size:13px">${e.device}</td>
+        <td style="padding:8px 12px">${actionIcon(e.action)} <span style="color:#e2e8f0;font-size:13px">${e.action}</span>
+          <span style="color:#38bdf8;font-size:13px"> ${label}</span>${dur}</td>
+      </tr>`
+    }).join('')
+
+    body.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #334155">
+        <th style="text-align:left;padding:6px 12px;color:#64748b;font-size:11px">Time</th>
+        <th style="text-align:left;padding:6px 12px;color:#64748b;font-size:11px">Device</th>
+        <th style="text-align:left;padding:6px 12px;color:#64748b;font-size:11px">Event</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  } catch(e) {
+    body.innerHTML = `<div style="color:#f87171;padding:12px">Error: ${e.message}</div>`
+  }
 }
 
 function getEventPriorityClient(e) {
@@ -1553,6 +1628,235 @@ function getEventPriorityClient(e) {
   if (e.source==='Ring' && e.category==='Sensor') return 'important'
   if (e.category==='Sensor') return 'important'
   return 'normal'
+}
+
+// ── Find My ──────────────────────────────────────────────────────────────────
+let _findMyLoaded = false
+async function loadFindMy() {
+  if (_findMyLoaded) return
+  _findMyLoaded = true
+  const el = document.getElementById('tab-findmy')
+  el.innerHTML = '<p style="color:var(--muted)">Loading Find My data…</p>'
+  try {
+    // Load both sources in parallel
+    const [r, rLoc] = await Promise.all([fetch('/api/findmy'), fetch('/api/location')])
+    const d    = await r.json()
+    const locs = await rLoc.json()  // Shortcut-reported devices: { "Gary's iPhone": { lat, lng, battery, currentPlace, dwellTime, updatedAt } }
+
+    const updatedAt = d.updatedAt ? new Date(d.updatedAt).toLocaleString() : 'unknown'
+
+    // Merge Shortcut devices into device list (they show separately if not in cache)
+    const shortcutDevices = Object.entries(locs).map(([name, info]) => ({
+      name, model: 'iPhone', deviceClass: 'iPhone',
+      battery: info.battery, charging: info.charging,
+      location: info.lat != null ? { lat: info.lat, lng: info.lng, timestamp: info.updatedAt } : null,
+      currentPlace: info.currentPlace, arrivedAt: info.arrivedAt, dwellTime: info.dwellTime,
+      _fromShortcut: true,
+    }))
+
+    // Battery bar helper
+    const battBar = (pct) => {
+      if (pct == null) return '<span style="color:#64748b">—</span>'
+      const color = pct > 50 ? '#4ade80' : pct > 20 ? '#fbbf24' : '#f87171'
+      const warn  = pct <= 20 ? ' ⚠️' : ''
+      return `<span style="color:${color}">🔋 ${pct}%${warn}</span>`
+    }
+
+    // Device icon
+    const devIcon = (model='', cls='') => {
+      const m = (model + cls).toLowerCase()
+      if (m.includes('iphone')) return '📱'
+      if (m.includes('ipad'))   return '📱'
+      if (m.includes('mac'))    return '💻'
+      if (m.includes('watch'))  return '⌚'
+      if (m.includes('airpod') || m.includes('headphone')) return '🎧'
+      return '📟'
+    }
+
+    // Time since helper
+    const timeSince = (ts) => {
+      if (!ts) return ''
+      const diff = Date.now() - new Date(ts).getTime()
+      const m = Math.floor(diff / 60000)
+      if (m < 2)   return 'just now'
+      if (m < 60)  return `${m}m ago`
+      const h = Math.floor(m / 60)
+      if (h < 24)  return `${h}h ago`
+      return `${Math.floor(h/24)}d ago`
+    }
+
+    // Build devices table
+    // Place badge helper
+    const placeBadge = (obj) => {
+      if (!obj.currentPlace) return ''
+      return `<span style="background:#1e3a5f;color:#38bdf8;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px">
+        📍 ${obj.currentPlace}${obj.dwellTime ? ' · ' + obj.dwellTime : ''}</span>`
+    }
+
+    // Merge: cache devices + Shortcut-only devices (not already in cache)
+    const cacheNames = new Set((d.devices||[]).map(x=>x.name))
+    const allDevices = [...(d.devices||[]), ...shortcutDevices.filter(x=>!cacheNames.has(x.name))]
+
+    const devRows = allDevices.map(dev => {
+      const loc = dev.location
+      const locText = loc
+        ? `<a href="https://maps.apple.com/?q=${loc.lat},${loc.lng}" target="_blank"
+              style="color:#38bdf8;font-size:11px">🗺 Map</a>
+           <span style="color:#64748b;font-size:11px"> · ${timeSince(loc.timestamp)}</span>`
+        : '<span style="color:#64748b;font-size:11px">No location</span>'
+      const chargingBadge = dev.charging === true ? ' <span style="color:#fbbf24;font-size:10px">⚡</span>' : ''
+      return `<tr style="border-top:1px solid #1e293b">
+        <td style="padding:10px 12px">${devIcon(dev.model, dev.deviceClass)} <strong style="color:#e2e8f0">${dev.name}</strong>${placeBadge(dev)}
+          <div style="color:#64748b;font-size:11px">${dev.model}</div></td>
+        <td style="padding:10px 12px">${battBar(dev.battery)}${chargingBadge}</td>
+        <td style="padding:10px 12px">${locText}</td>
+      </tr>`
+    }).join('') || '<tr><td colspan="3" style="color:#64748b;padding:12px">No devices found</td></tr>'
+
+    // Build items table
+    const itemRows = (d.items || []).map(item => {
+      const loc = item.location
+      const locText = loc
+        ? `<a href="https://maps.apple.com/?q=${loc.lat},${loc.lng}" target="_blank"
+              style="color:#38bdf8;font-size:11px">🗺 Map</a>
+           <span style="color:#64748b;font-size:11px"> · ${timeSince(loc.timestamp)}</span>`
+        : '<span style="color:#64748b;font-size:11px">No location</span>'
+      const lostBadge = item.isLost ? ' <span style="background:#f87171;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px">LOST</span>' : ''
+      const battLabel = typeof item.battery === 'number' ? battBar(item.battery)
+        : item.battery ? `<span style="color:#94a3b8;font-size:11px">${item.battery}</span>` : '<span style="color:#64748b">—</span>'
+      return `<tr style="border-top:1px solid #1e293b">
+        <td style="padding:10px 12px">${item.emoji} <strong style="color:#e2e8f0">${item.name}</strong>${lostBadge}${placeBadge(item)}
+          <div style="color:#64748b;font-size:11px">${item.productType}</div></td>
+        <td style="padding:10px 12px">${battLabel}</td>
+        <td style="padding:10px 12px">${locText}</td>
+      </tr>`
+    }).join('') || '<tr><td colspan="3" style="color:#64748b;padding:12px">No items found</td></tr>'
+
+    // "Who's where" summary bar
+    const atPlace = [...allDevices, ...(d.items||[])].filter(x => x.currentPlace)
+    const whereBar = atPlace.length ? `
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px">
+        ${atPlace.map(x => `
+          <div style="background:#1e293b;border-radius:8px;padding:6px 12px;font-size:13px">
+            <span style="color:#e2e8f0">${x.name}</span>
+            <span style="color:#38bdf8;margin:0 4px">·</span>
+            <span style="color:#94a3b8">${x.currentPlace}</span>
+            ${x.dwellTime ? `<span style="color:#64748b;font-size:11px"> for ${x.dwellTime}</span>` : ''}
+          </div>`).join('')}
+      </div>` : ''
+
+    // Map: collect all points with a location
+    const allPoints = [
+      ...allDevices.filter(x=>x.location).map(x=>({...x.location, label: devIcon(x.model,x.deviceClass)+' '+x.name, color:'#38bdf8'})),
+      ...(d.items||[]).filter(x=>x.location).map(x=>({...x.location, label: x.emoji+' '+x.name, color:'#a78bfa'})),
+    ]
+
+    const mapHtml = allPoints.length > 0 ? `
+      <div style="border-radius:12px;overflow:hidden;border:1px solid #334155;margin-bottom:20px">
+        <div id="findmy-map" style="height:320px;width:100%"></div>
+      </div>` : ''
+
+    el.innerHTML = `
+      <div style="padding:20px;max-width:900px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h2 style="margin:0;color:#e2e8f0;font-size:18px">📍 Find My</h2>
+          <span style="color:#64748b;font-size:12px">Updated: ${updatedAt}
+            <button onclick="_findMyLoaded=false;loadFindMy()" style="margin-left:10px;background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px">↻ Refresh</button>
+          </span>
+        </div>
+
+        ${mapHtml}
+
+        ${whereBar}
+
+        <div style="background:#1e293b;border-radius:12px;border:1px solid #334155;margin-bottom:16px;overflow:hidden">
+          <div style="padding:10px 14px;background:#0f172a;font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">
+            Apple Devices (${allDevices.length})
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #334155">
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Device</th>
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Battery</th>
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Location</th>
+            </tr></thead>
+            <tbody>${devRows}</tbody>
+          </table>
+        </div>
+
+        <div style="background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden">
+          <div style="padding:10px 14px;background:#0f172a;font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">
+            AirTags &amp; Items (${(d.items||[]).length})
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #334155">
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Item</th>
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Battery</th>
+              <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;font-weight:600">Last Seen</th>
+            </tr></thead>
+            <tbody>${itemRows}</tbody>
+          </table>
+        </div>
+
+        <div style="background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden;margin-top:16px">
+          <div style="padding:10px 14px;background:#0f172a;font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center">
+            <span>📋 Presence History</span>
+            <span style="display:flex;gap:6px">
+              <input id="fm-hist-device" placeholder="Device…" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:3px 8px;border-radius:5px;font-size:11px;width:120px">
+              <input id="fm-hist-place"  placeholder="Place…"  style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:3px 8px;border-radius:5px;font-size:11px;width:100px">
+              <select id="fm-hist-days" style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:3px 6px;border-radius:5px;font-size:11px">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+              </select>
+              <button onclick="loadFindMyHistory()" style="background:#334155;border:none;color:#e2e8f0;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:11px">Search</button>
+            </span>
+          </div>
+          <div id="fm-history-body" style="max-height:320px;overflow-y:auto">
+            <div style="color:#64748b;padding:12px;font-size:13px">Click Search to load history…</div>
+          </div>
+        </div>
+      </div>`
+
+    // Load Leaflet map if we have points
+    if (allPoints.length > 0) {
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link')
+        link.id   = 'leaflet-css'
+        link.rel  = 'stylesheet'
+        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
+        document.head.appendChild(link)
+      }
+      const loadMap = () => {
+        const mapEl = document.getElementById('findmy-map')
+        if (!mapEl) return
+        const avgLat = allPoints.reduce((s,p)=>s+p.lat,0)/allPoints.length
+        const avgLng = allPoints.reduce((s,p)=>s+p.lng,0)/allPoints.length
+        const map = L.map('findmy-map').setView([avgLat, avgLng], 13)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors', maxZoom: 19
+        }).addTo(map)
+        allPoints.forEach(p => {
+          const icon = L.divIcon({
+            html: `<div style="background:${p.color};color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">${p.label[0]}</div>`,
+            className: '', iconSize: [28,28], iconAnchor: [14,14]
+          })
+          L.marker([p.lat, p.lng], {icon}).addTo(map).bindPopup(`<strong>${p.label}</strong>`)
+        })
+        if (allPoints.length > 1) map.fitBounds(allPoints.map(p=>[p.lat,p.lng]), {padding:[30,30]})
+      }
+      if (window.L) {
+        loadMap()
+      } else {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
+        s.onload = loadMap
+        document.head.appendChild(s)
+      }
+    }
+  } catch(e) {
+    document.getElementById('tab-findmy').innerHTML =
+      `<div style="padding:24px;color:#f87171">Error loading Find My data: ${e.message}</div>`
+  }
 }
 </script>
 </body>

@@ -17,12 +17,29 @@ const GOVEE_API_BASE = process.env.GOVEE_API_BASE ?? 'https://developer-api.gove
 const INTERVAL_SECONDS = parseInt(process.env.HOME_WATCH_INTERVAL_SECONDS ?? '60', 10)
 const CAUSE_WINDOW_SECONDS = parseInt(process.env.HOME_CAUSE_WINDOW_SECONDS ?? '120', 10)
 const HISTORY_KEEP_DAYS = parseInt(process.env.HOME_EVENT_KEEP_DAYS ?? '30', 10)
+const TRIGGER_WINDOW_SECONDS = parseInt(process.env.HOME_TRIGGER_WINDOW_SECONDS ?? '30', 10)
 const RING_TIMEOUT_SECONDS = parseInt(process.env.HOME_RING_TIMEOUT_SECONDS ?? '35', 10)
 const GOVEE_TIMEOUT_SECONDS = parseInt(process.env.HOME_GOVEE_TIMEOUT_SECONDS ?? '25', 10)
 const HUE_TIMEOUT_SECONDS = parseInt(process.env.HOME_HUE_TIMEOUT_SECONDS ?? '15', 10)
 const SEND_ALERTS = !process.argv.includes('--no-alert') && process.env.HOME_EVENT_ALERTS !== '0'
 const RUN_ONCE = process.argv.includes('--once')
 const IGNORED_LIGHT_STATE_KEYS = new Set()
+
+// ── Trigger Source Tracking ──────────────────────────────────────────────────
+// Stores recent trigger notifications posted by Alexa routines, Apple Home,
+// Siri Shortcuts, etc. before they execute a device command. Each event
+// recorded within TRIGGER_WINDOW_SECONDS of a trigger gets a triggerSource.
+const pendingTriggers = []
+
+function findRecentTrigger(nowMs) {
+  const cutoff = nowMs - TRIGGER_WINDOW_SECONDS * 1000
+  // Prune expired entries (oldest first)
+  while (pendingTriggers.length && new Date(pendingTriggers[0].at).getTime() < cutoff) {
+    pendingTriggers.shift()
+  }
+  // Return the most recent trigger (last in array)
+  return pendingTriggers.length ? pendingTriggers[pendingTriggers.length - 1] : null
+}
 
 function loadAlertEnv() {
   for (const file of ALERT_ENV_FILES) {
@@ -1078,6 +1095,17 @@ function updateTimeline(items) {
         }
       }
 
+      // Attach trigger source if a recent trigger notification was received
+      const trigger = findRecentTrigger(now.getTime())
+      if (trigger) {
+        event.triggerSource = {
+          source: trigger.source,
+          routine: trigger.routine ?? null,
+          note: trigger.note ?? null,
+          at: trigger.at,
+        }
+      }
+
       history.events.push(event)
       events.push(event)
     }
@@ -1476,7 +1504,7 @@ async function buildDashboard(history, devices) {
         }
         let battHtml
         if (batt1 != null && batt2 != null) {
-          battHtml = battSpan(batt1, '1') + ' ' + battSpan(batt2, '2')
+          battHtml = battSpan(batt1, 'L') + ' ' + battSpan(batt2, 'R')
         } else if (batt1 != null) {
           battHtml = battSpan(batt1, '')
         } else {
@@ -2711,7 +2739,10 @@ function startDashboard() {
         // Check if motion detection is enabled
         const motionEnabled = cam.data?.led_status !== 'off' && cam.isMotionDetectionEnabled !== false
         try {
-          const snapshot = await cam.getSnapshot()
+          const snapshot = await Promise.race([
+            cam.getSnapshot(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Snapshot timeout')), 8000))
+          ])
           res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-cache' })
           res.end(snapshot)
         } catch(snapErr) {
@@ -3320,6 +3351,194 @@ function startControlServer() {
   const server = http.createServer(async (req, res) => {
     const send = (data) => { res.writeHead(200, {'Content-Type':'application/json'}); res.end(JSON.stringify(data)) }
 
+    // ── Trigger webhook — bypass basic auth, use optional token instead ────────
+    // Apple Shortcuts location update: POST /api/location
+    // Body: { "device": "Gary's iPhone", "lat": 38.99, "lng": -84.63, "battery": 87, "charging": false }
+    if (req.method === 'POST' && req.url.startsWith('/api/location')) {
+      let body = ''
+      req.on('data', d => body += d)
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body || '{}')
+          const { device } = data
+          const lat = parseFloat(data.lat), lng = parseFloat(data.lng)
+          const battery = data.battery != null ? parseFloat(data.battery) : null
+          const charging = data.charging
+          if (!device || lat == null || lng == null) {
+            res.writeHead(400, {'Content-Type':'application/json'})
+            res.end(JSON.stringify({ ok: false, error: 'device, lat, lng required' }))
+            return
+          }
+
+          // Load places for geofencing
+          const placesPath = new URL('./findmy_places.json', import.meta.url).pathname
+          const statePath  = new URL('./findmy_state.json',  import.meta.url).pathname
+          let places = []
+          let state  = {}
+          try { places = JSON.parse(readFileSync(placesPath, 'utf-8')) } catch {}
+          try { state  = JSON.parse(readFileSync(statePath,  'utf-8')) } catch {}
+
+          // Find matching place
+          const dist = (lat1, lng1, lat2, lng2) => {
+            const R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+          }
+          const currentPlace = places.find(p => dist(lat, lng, p.lat, p.lng) <= (p.radiusMeters ?? 150))?.name ?? null
+          const key = `device:${device}`
+          const prev = state[key] ?? {}
+          const now = new Date().toISOString()
+
+          // Detect arrival / departure
+          if (currentPlace && currentPlace !== prev.place) {
+            if (prev.place) {
+              const durMs = prev.arrivedAt ? Date.now() - new Date(prev.arrivedAt).getTime() : 0
+              const durMin = Math.round(durMs / 60000)
+              const history = loadHistory()
+              history.events.push({ at: now, source: 'FindMy', category: 'Presence', device,
+                description: `${device} left ${prev.place} after ${durMin}m`,
+                place: prev.place, action: 'departed', durationMin: durMin })
+              saveHistory(history)
+            }
+            state[key] = { place: currentPlace, arrivedAt: now, lat, lng }
+            const history = loadHistory()
+            history.events.push({ at: now, source: 'FindMy', category: 'Presence', device,
+              description: `${device} arrived at ${currentPlace}`, place: currentPlace, action: 'arrived' })
+            saveHistory(history)
+          } else if (!currentPlace && prev.place) {
+            const durMs = prev.arrivedAt ? Date.now() - new Date(prev.arrivedAt).getTime() : 0
+            const durMin = Math.round(durMs / 60000)
+            state[key] = { place: null, arrivedAt: null, lat, lng }
+            const history = loadHistory()
+            history.events.push({ at: now, source: 'FindMy', category: 'Presence', device,
+              description: `${device} left ${prev.place} after ${durMin}m`,
+              place: prev.place, action: 'departed', durationMin: durMin })
+            saveHistory(history)
+          } else {
+            state[key] = { ...prev, lat, lng }
+          }
+
+          // Save state + location snapshot
+          try { writeFileSync(statePath, JSON.stringify(state, null, 2)) } catch {}
+          const locPath = new URL('./location_data.json', import.meta.url).pathname
+          let locData = {}
+          try { locData = JSON.parse(readFileSync(locPath, 'utf-8')) } catch {}
+          const dwellMs = state[key]?.arrivedAt ? Date.now() - new Date(state[key].arrivedAt).getTime() : 0
+          const dwellMin = Math.round(dwellMs / 60000)
+          locData[device] = {
+            lat, lng, battery: battery ?? null, charging: charging ?? null,
+            currentPlace, arrivedAt: state[key]?.arrivedAt ?? null,
+            dwellTime: currentPlace && dwellMin > 0 ? `${dwellMin >= 60 ? Math.floor(dwellMin/60)+'h ' : ''}${dwellMin%60}m` : null,
+            updatedAt: now,
+          }
+          try { writeFileSync(locPath, JSON.stringify(locData, null, 2)) } catch {}
+
+          // Write to MariaDB asynchronously (fire and forget)
+          const dbCfgPath = new URL('./findmy_db.json', import.meta.url).pathname
+          if (existsSync(dbCfgPath)) {
+            const action = (currentPlace && currentPlace !== prev.place) ? 'arrived'
+                         : (!currentPlace && prev.place) ? 'departed' : null
+            const durSec = (action === 'departed' && prev.arrivedAt)
+                         ? Math.round((Date.now() - new Date(prev.arrivedAt).getTime()) / 1000) : null
+            const arrivedAt = state[key]?.arrivedAt ?? null
+            const pyScript = `
+import json, sys
+try:
+    import pymysql
+except ImportError:
+    import subprocess; subprocess.check_call([sys.executable,'-m','pip','install','pymysql','--break-system-packages','-q'])
+    import pymysql
+cfg = json.load(open(${JSON.stringify(dbCfgPath)}))
+db = pymysql.connect(host=cfg['host'],port=int(cfg.get('port',3306)),database=cfg['database'],user=cfg['user'],password=cfg['password'],charset='utf8mb4',autocommit=True)
+cur = db.cursor()
+cur.execute("""CREATE TABLE IF NOT EXISTS device_locations (
+  device VARCHAR(200) NOT NULL PRIMARY KEY,
+  lat DOUBLE, lng DOUBLE, battery DOUBLE, charging TINYINT(1),
+  current_place VARCHAR(200), arrived_at DATETIME,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) CHARACTER SET utf8mb4""")
+cur.execute("""CREATE TABLE IF NOT EXISTS presence_events (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  device VARCHAR(200) NOT NULL, kind VARCHAR(20) NOT NULL DEFAULT 'device',
+  action VARCHAR(20) NOT NULL, place VARCHAR(200),
+  lat DOUBLE, lng DOUBLE, arrived_at DATETIME, departed_at DATETIME, duration_sec INT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) CHARACTER SET utf8mb4""")
+cur.execute("""INSERT INTO device_locations (device,lat,lng,battery,charging,current_place,arrived_at)
+  VALUES (%s,%s,%s,%s,%s,%s,%s)
+  ON DUPLICATE KEY UPDATE lat=%s,lng=%s,battery=%s,charging=%s,current_place=%s,arrived_at=%s,updated_at=CURRENT_TIMESTAMP""",
+  (${JSON.stringify(device)},${lat},${lng},${battery ?? 'None'},${charging ? 1 : 0},${JSON.stringify(currentPlace)},${arrivedAt ? JSON.stringify(arrivedAt) : 'None'},
+   ${lat},${lng},${battery ?? 'None'},${charging ? 1 : 0},${JSON.stringify(currentPlace)},${arrivedAt ? JSON.stringify(arrivedAt) : 'None'}))
+${action ? `cur.execute("""INSERT INTO presence_events (device,action,place,lat,lng,arrived_at,${action==='departed'?'departed_at,duration_sec':'arrived_at'}) VALUES (%s,%s,%s,%s,%s,%s${action==='departed'?',%s,%s':''})""",
+  (${JSON.stringify(device)},${JSON.stringify(action)},${JSON.stringify(action==='arrived'?currentPlace:prev.place)},${lat},${lng},${arrivedAt ? JSON.stringify(arrivedAt) : 'None'}${action==='departed' ? `,${JSON.stringify(now)},${durSec ?? 'None'}` : ''}))` : ''}
+db.close()
+print('ok')
+`
+            exec(`python3 -c ${JSON.stringify(pyScript)}`, (err, stdout, stderr) => {
+              if (err) console.error('[location-db]', stderr?.slice(0,200))
+              else console.log('[location-db] wrote to MariaDB')
+            })
+          }
+
+          console.log(`[location] ${device} @ ${currentPlace ?? `${lat.toFixed(4)},${lng.toFixed(4)}`} batt:${battery ?? '?'}%`)
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ ok: true, place: currentPlace, device }))
+        } catch(e) {
+          res.writeHead(400, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ ok: false, error: e.message }))
+        }
+      })
+      return
+    }
+
+    // GET /api/location — current location snapshot for all Shortcut-reporting devices
+    if (req.method === 'GET' && req.url === '/api/location') {
+      try {
+        const locPath = new URL('./location_data.json', import.meta.url).pathname
+        const data = existsSync(locPath) ? JSON.parse(readFileSync(locPath, 'utf-8')) : {}
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(JSON.stringify(data))
+      } catch(e) {
+        res.writeHead(500, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    // Alexa/Apple Home call: POST /trigger?token=<HOME_TRIGGER_TOKEN>
+    // Body: { "source": "Alexa", "routine": "Morning Routine", "note": "..." }
+    if (req.method === 'POST' && req.url.startsWith('/trigger')) {
+      const TRIGGER_TOKEN = process.env.HOME_TRIGGER_TOKEN ?? ''
+      const qs = new URL(req.url, 'http://localhost').searchParams
+      if (TRIGGER_TOKEN && qs.get('token') !== TRIGGER_TOKEN) {
+        res.writeHead(403, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ ok: false, error: 'Invalid token' }))
+        return
+      }
+      let body = ''
+      req.on('data', d => body += d)
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body || '{}')
+          const entry = {
+            at: new Date().toISOString(),
+            source: String(data.source || 'Unknown').trim(),
+            routine: data.routine ? String(data.routine).trim() : null,
+            note: data.note ? String(data.note).trim() : null,
+          }
+          pendingTriggers.push(entry)
+          if (pendingTriggers.length > 50) pendingTriggers.shift()
+          console.log(`[trigger] ${entry.source}${entry.routine ? ' / ' + entry.routine : ''}`)
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ ok: true, trigger: entry }))
+        } catch(e) {
+          res.writeHead(400, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ ok: false, error: e.message }))
+        }
+      })
+      return
+    }
+
     // Basic auth check
     const AUTH_USER = process.env.HOME_CONTROL_USER || 'gary'
     const AUTH_PASS = process.env.HOME_CONTROL_PASS || 'home2026'
@@ -3400,24 +3619,112 @@ function startControlServer() {
       return
     }
 
+    // Find My — presence history from MariaDB on QNAP
+    if (req.method === 'GET' && req.url.startsWith('/api/findmy/history')) {
+      try {
+        const { execFile } = await import('child_process')
+        const { promisify } = await import('util')
+        const execFileP = promisify(execFile)
+        const qs = new URL(req.url, 'http://localhost').searchParams
+        const device = qs.get('device') ?? ''
+        const place  = qs.get('place')  ?? ''
+        const days   = Math.min(parseInt(qs.get('days') ?? '30', 10), 365)
+        const limit  = Math.min(parseInt(qs.get('limit') ?? '100', 10), 500)
+
+        const pyScript = `
+import json, sys
+from pathlib import Path
+cfg_file = Path.home() / 'epg/findmy_db.json'
+if not cfg_file.exists():
+    print(json.dumps({"error": "findmy_db.json not found", "events": [], "devices": []}))
+    sys.exit(0)
+cfg = json.loads(cfg_file.read_text())
+try:
+    import pymysql, pymysql.cursors
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pymysql", "--break-system-packages", "-q"])
+    import pymysql, pymysql.cursors
+db = pymysql.connect(host=cfg['host'], port=int(cfg.get('port',3306)),
+    database=cfg['database'], user=cfg['user'], password=cfg['password'],
+    charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+where = ["created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ${days} DAY)"]
+params = []
+device_filter = ${JSON.stringify(device)}
+place_filter  = ${JSON.stringify(place)}
+if device_filter: where.append("device LIKE %s"); params.append(f"%{device_filter}%")
+if place_filter:  where.append("(place LIKE %s OR geo_name LIKE %s)"); params.extend([f"%{place_filter}%"]*2)
+with db.cursor() as cur:
+    cur.execute(f"SELECT * FROM presence_events WHERE {' AND '.join(where)} ORDER BY created_at DESC LIMIT ${limit}", params)
+    events = cur.fetchall()
+    cur.execute("SELECT * FROM device_locations ORDER BY updated_at DESC")
+    devices = cur.fetchall()
+def default(o):
+    import datetime
+    if isinstance(o, (datetime.datetime, datetime.date)): return o.isoformat()
+    return str(o)
+print(json.dumps({"events": list(events), "devices": list(devices)}, default=default))
+`
+        const { stdout } = await execFileP('/usr/bin/python3', ['-c', pyScript])
+        res.writeHead(200, {'Content-Type':'application/json'})
+        res.end(stdout)
+      } catch(e) {
+        res.writeHead(500, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    // Find My — devices, AirTags, locations
+    if (req.method === 'GET' && req.url === '/api/findmy') {
+      try {
+        const fmPath = new URL('./findmy_data.json', import.meta.url).pathname
+        if (!existsSync(fmPath)) {
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify({ devices: [], items: [], updatedAt: null, error: 'findmy_data.json not found — run findmy_poll.py first' }))
+        } else {
+          const data = JSON.parse(readFileSync(fmPath, 'utf-8'))
+          res.writeHead(200, {'Content-Type':'application/json'})
+          res.end(JSON.stringify(data))
+        }
+      } catch(e) {
+        res.writeHead(500, {'Content-Type':'application/json'})
+        res.end(JSON.stringify({ error: e.message }))
+      }
+      return
+    }
+
+    // Recent trigger log — for debugging/dashboard
+    if (req.method === 'GET' && req.url === '/api/triggers') {
+      res.writeHead(200, {'Content-Type':'application/json'})
+      res.end(JSON.stringify({ triggers: [...pendingTriggers].reverse(), windowSeconds: TRIGGER_WINDOW_SECONDS }))
+      return
+    }
+
     // Orbi attached devices
     // Event history with filtering
     if (req.url.startsWith('/api/event-history') && req.method === 'GET') {
       try {
         const qs = new URL(req.url, 'http://localhost').searchParams
-        const source = qs.get('source') ?? ''
-        const from   = qs.get('from')   ?? ''
-        const to     = qs.get('to')     ?? ''
+        const source      = qs.get('source')        ?? ''
+        const from        = qs.get('from')          ?? ''
+        const to          = qs.get('to')            ?? ''
+        const triggerSrc  = qs.get('triggerSource') ?? ''
         const limit  = Math.min(parseInt(qs.get('limit') ?? '200', 10), 1000)
         const history = loadHistory()
         let events = [...history.events].reverse()
-        if (source) events = events.filter(e => e.source.toLowerCase() === source.toLowerCase())
-        if (from)   events = events.filter(e => e.at >= from)
-        if (to)     events = events.filter(e => e.at <= to + 'T23:59:59Z')
+        if (source)     events = events.filter(e => e.source.toLowerCase() === source.toLowerCase())
+        if (from)       events = events.filter(e => e.at >= from)
+        if (to)         events = events.filter(e => e.at <= to + 'T23:59:59Z')
+        if (triggerSrc) events = events.filter(e => e.triggerSource?.source?.toLowerCase() === triggerSrc.toLowerCase())
+        const total = events.length
         events = events.slice(0, limit)
         const sources = [...new Set([...history.events].map(e => e.source))].sort()
+        const triggerSources = [...new Set(
+          history.events.filter(e => e.triggerSource?.source).map(e => e.triggerSource.source)
+        )].sort()
         res.writeHead(200, {'Content-Type':'application/json'})
-        res.end(JSON.stringify({ events, sources, total: events.length }))
+        res.end(JSON.stringify({ events, sources, triggerSources, total }))
       } catch(e) {
         res.writeHead(500, {'Content-Type':'application/json'})
         res.end(JSON.stringify({error: e.message}))
