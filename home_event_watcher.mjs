@@ -4424,15 +4424,15 @@ print(json.dumps({"events": list(events), "devices": list(devices)}, default=def
         const cam = cams.find(c => c.name === camName)
         if (!cam) { res.writeHead(404); res.end(); return }
         try {
-          const snapshot = await cam.getSnapshot()
+          const snapshot = await Promise.race([
+            cam.getSnapshot(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Snapshot timeout')), 8000))
+          ])
           res.writeHead(200, {'Content-Type':'image/jpeg','Cache-Control':'no-cache'})
           res.end(snapshot)
         } catch(snapErr) {
-          if (snapErr.message?.includes('Motion detection is disabled')) {
-            const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200"><rect width="640" height="200" fill="#1e293b"/><text x="320" y="90" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="14">Motion Detection Disabled</text><text x="320" y="115" text-anchor="middle" fill="#475569" font-family="sans-serif" font-size="11">${camName}</text></svg>`)
-            res.writeHead(200, {'Content-Type':'image/svg+xml'})
-            res.end(svg)
-          } else { res.writeHead(500); res.end() }
+          console.log(`[snapshot] ${camName}: ${snapErr.message}`)
+          res.writeHead(500); res.end(snapErr.message)
         }
       } catch(e) { res.writeHead(500); res.end(e.message) }
       return
