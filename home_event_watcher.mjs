@@ -3815,7 +3815,7 @@ print(json.dumps({"events": list(events), "devices": list(devices)}, default=def
     const tccPy = async (...args) => {
       const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
       const escaped = args.map(a => `"${String(a).replace(/"/g, '\\"')}"`).join(' ')
-      const { stdout, stderr } = await execAsync(`python3.11 "${scriptPath}" ${escaped}`)
+      const { stdout, stderr } = await execAsync(`python3 "${scriptPath}" ${escaped}`)
       if (stderr) console.log('[TCC py stderr]', stderr.trim())
       const result = JSON.parse(stdout.trim())
       if (result.error) console.log('[TCC py error]', result.error, result.trace || '')
@@ -5154,7 +5154,7 @@ const TCC_AUTO_COOL_ABOVE = parseFloat(process.env.TCC_AUTO_COOL_ABOVE ?? '76')
 async function checkThermostatAutoSwitch() {
   try {
     const scriptPath = new URL('./tcc_thermostat.py', import.meta.url).pathname
-    const { stdout } = await execAsync(`python3.11 "${scriptPath}" get`)
+    const { stdout } = await execAsync(`python3 "${scriptPath}" get`)
     const state = JSON.parse(stdout.trim())
     if (state.error) { console.log('[TCC Auto] Thermostat error:', state.error); return }
 
@@ -5172,7 +5172,7 @@ async function checkThermostatAutoSwitch() {
 
     if (targetMode) {
       console.log(`[TCC Auto] Switching ${currentMode} → ${targetMode} (outdoor: ${outdoorTemp}°F)`)
-      await execAsync(`python3.11 "${scriptPath}" setMode ${targetMode}`)
+      await execAsync(`python3 "${scriptPath}" setMode ${targetMode}`)
       if (global._tccCache) global._tccCache.ts = 0
     } else {
       console.log(`[TCC Auto] Mode OK — no change`)

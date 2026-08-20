@@ -871,6 +871,15 @@ async function roomOffByNames(deviceNamesStr) {
   }
 }
 
+async function toggleCamMotion(encName, btn) {
+  const enabling = btn.textContent.trim().startsWith('○')
+  btn.textContent = enabling ? '● Motion' : '○ Motion'
+  btn.style.background = enabling ? '#166534' : '#1e293b'
+  btn.style.borderColor = enabling ? '#4ade80' : '#475569'
+  btn.style.color = enabling ? '#fff' : '#94a3b8'
+  await fetch('/camera-motion', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: decodeURIComponent(encName), enable: enabling }) })
+}
+
 async function lockToggle(endpointId, pid) {
   const btn = document.getElementById(pid + '_toggle')
   const isLocked = btn?.dataset.state !== 'unlocked'
@@ -1296,16 +1305,30 @@ async function loadSmartHome() {
         } else if (cat === 'CAMERA') {
           const snapUrl = '/snapshot/' + encodeURIComponent(dev.name) + '?t=' + Date.now()
           const camKey = 'cam_' + dev.name.replace(/[^a-z0-9]/gi,'_').toLowerCase()
+          const encName = encodeURIComponent(dev.name)
+          const motionOn = dev.motionEnabled !== false
           html += '<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;overflow:hidden;min-width:200px">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid #0f172a">' +
               '<span style="font-size:11px;color:#94a3b8;font-weight:600">📷 ' + dev.name + '</span>' +
-              '<span id="' + camKey + '_batt" style="font-size:10px;color:#64748b"></span>' +
+              '<span style="display:flex;align-items:center;gap:8px">' +
+                '<button id="' + camKey + '_motion" onclick="toggleCamMotion(\'' + encName + '\',this)" ' +
+                  'style="font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid;' +
+                  (motionOn ? 'background:#166534;border-color:#4ade80;color:#fff' : 'background:#1e293b;border-color:#475569;color:#94a3b8') + '">' +
+                  (motionOn ? '● Motion' : '○ Motion') + '</button>' +
+                '<span id="' + camKey + '_batt" style="font-size:10px;color:#64748b"></span>' +
+              '</span>' +
             '</div>' +
-            '<img src="' + snapUrl + '" style="width:100%;display:block;cursor:pointer" ' +
-              'onclick="this.src=\'/snapshot/' + encodeURIComponent(dev.name) + '?t=\'+Date.now()" ' +
-              'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'" ' +
-              'title="Click to refresh">' +
-            '<div style="display:none;padding:16px;text-align:center;color:#475569;font-size:11px">No snapshot available<br><span onclick="var p=this.parentNode;p.style.display=\'none\';var img=p.previousSibling;img.style.display=\'block\';img.src=img.src.split(\'?\')[0]+\'?t=\'+Date.now()" style="color:#60a5fa;cursor:pointer;font-size:10px;margin-top:4px;display:inline-block">↺ Retry</span></div>' +
+            '<div style="position:relative">' +
+              '<img src="' + snapUrl + '" style="width:100%;display:block;cursor:pointer" ' +
+                'onload="var t=this.nextSibling;t.textContent=new Date().toLocaleTimeString()" ' +
+                'onclick="this.src=\'/snapshot/' + encName + '?t=\'+Date.now()" ' +
+                'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'none\';this.parentNode.lastChild.style.display=\'block\'" ' +
+                'title="Click to refresh">' +
+              '<span style="position:absolute;bottom:4px;right:6px;font-size:9px;color:#fff;background:rgba(0,0,0,0.5);padding:1px 4px;border-radius:2px;pointer-events:none"></span>' +
+              '<div style="display:none;padding:16px;text-align:center;color:#475569;font-size:11px">No snapshot available<br>' +
+                '<span onclick="var p=this.parentNode;p.style.display=\'none\';var img=p.parentNode.querySelector(\'img\');img.style.display=\'block\';img.src=img.src.split(\'?\')[0]+\'?t=\'+Date.now()" ' +
+                'style="color:#60a5fa;cursor:pointer;font-size:10px;margin-top:4px;display:inline-block">↺ Retry</span></div>' +
+            '</div>' +
           '</div>'
           _camBatteryIds.push({ name: dev.name, camKey })
         } else if (cat === 'SMARTLOCK') {
