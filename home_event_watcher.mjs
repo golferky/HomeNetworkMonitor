@@ -4394,6 +4394,27 @@ print(json.dumps({"events": list(events), "devices": list(devices)}, default=def
       return
     }
 
+    // Camera motion toggle
+    if (req.method === 'POST' && req.url === '/camera-motion') {
+      let body = ''
+      req.on('data', d => body += d)
+      req.on('end', async () => {
+        try {
+          const { name, enable } = JSON.parse(body)
+          if (!ringApiInstance) { res.writeHead(503); res.end(JSON.stringify({ok:false,error:'Ring not ready'})); return }
+          const cameras = await ringApiInstance.getCameras()
+          const cam = cameras.find(c => c.name === name)
+          if (!cam) { res.writeHead(404); res.end(JSON.stringify({ok:false,error:'Camera not found: '+name})); return }
+          try { await cam.setSettings({ motion_detection_enabled: enable }) }
+          catch(e1) { await cam.setDeviceSettings({ motion_settings: { motion_detection_enabled: enable } }) }
+          res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true}))
+        } catch(e) {
+          res.writeHead(500,{'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:e.message}))
+        }
+      })
+      return
+    }
+
     // Camera snapshot proxy
     if (req.url?.startsWith('/snapshot/')) {
       const camName = decodeURIComponent(req.url.replace('/snapshot/', '').split('?')[0])
