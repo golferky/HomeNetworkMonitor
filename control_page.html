@@ -882,6 +882,14 @@ async function toggleCamMotion(encName, btn) {
       btn.style.background = enabling ? '#166534' : '#1e293b'
       btn.style.borderColor = enabling ? '#4ade80' : '#475569'
       btn.style.color = enabling ? '#fff' : '#94a3b8'
+      if (enabling) {
+        // Reload snapshot after short delay to let camera wake
+        setTimeout(() => {
+          const card = btn.closest('div[style*="border-radius:8px"]')
+          const img = card?.querySelector('img')
+          if (img) { img.style.display = 'block'; img.src = img.src.split('?')[0] + '?t=' + Date.now() }
+        }, 3000)
+      }
     } else {
       btn.textContent = '⚠ ' + (j.error || 'Error')
       console.warn('[toggleCamMotion] error:', j.error, 'name:', decodeURIComponent(encName))
